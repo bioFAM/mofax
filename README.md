@@ -1,7 +1,5 @@
 ![MOFA+ in Python](img/mpp_header.png)
 
-# mpp: MOFA+ in Python
-
 Work with trained factor models in Python.
 
 This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python – hence the name. For more information on the multi-omics factor analysis v2 framework please see [this GitHub repository](https://github.com/bioFAM/MOFA2).
