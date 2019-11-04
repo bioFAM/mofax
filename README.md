@@ -1,3 +1,5 @@
+![MOFA+ in Python](img/mpp_header.png)
+
 # mpp: MOFA+ in Python
 
 Work with trained factor models in Python.
