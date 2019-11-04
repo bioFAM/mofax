@@ -166,6 +166,8 @@ class mofa_model():
         # If one factor is used, wrap it in a list
         if not isinstance(factors, Iterable) or isinstance(factors, str):
             factors = [factors]
+        # Convert factor names (FactorN) to factor indices (N-1)
+        factors = [int(fi.replace("Factor", ""))-1 if isinstance(fi, str) else fi for fi in factors]  
         return factors
 
 
