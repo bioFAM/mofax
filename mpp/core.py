@@ -84,7 +84,7 @@ class mofa_model():
         return pd.DataFrame([[view, feature] for view, feature_list in self.features.items() for feature in feature_list if view in views], columns=["view", "feature"])
     
     def get_factors(self, groups: Union[str, int, List[str], List[int]] = None,
-                    df = False):
+                    factors: Union[int, List[int]] = None, df = False):
         """
         Get the matrix with factors as a NumPy array or as a DataFrame (df=True).
 
@@ -92,11 +92,14 @@ class mofa_model():
         ----------
         groups : optional
             List of groups to consider
+        factors : optional
+            Indices of factors to consider
         df : optional
             Boolean value if to return Z matrix as a DataFrame
         """
         groups = self.__check_groups(groups)
-        z = np.concatenate(tuple(np.array(self.factors[group]).T for group in groups))
+        factors = self.__check_factors(factors)
+        z = np.concatenate(tuple(np.array(self.factors[group]).T[:,factors] for group in groups))
         if df:
             z = pd.DataFrame(z)
             z.columns = [f"Factor{i+1}" for i in range(z.shape[1])]
@@ -104,7 +107,7 @@ class mofa_model():
         return z
     
     def get_weights(self, views: Union[str, int, List[str], List[int]] = None,
-                    df = False):
+                    factors: Union[int, List[int]] = None, df = False):
         """
         Get the matrix with loadings as a NumPy array or as a DataFrame (df=True).
 
@@ -112,11 +115,14 @@ class mofa_model():
         ----------
         views : optional
             List of views to consider
+        factors : optional
+            Indices of factors to use
         df : optional
             Boolean value if to return W matrix as a DataFrame
         """
         views = self.__check_views(views)
-        w = np.concatenate(tuple(np.array(self.weights[view]).T for view in views))
+        factors = self.__check_factors(factors)
+        w = np.concatenate(tuple(np.array(self.weights[view]).T[:,factors] for view in views))
         if df:
             w = pd.DataFrame(w)
             w.columns = [f"Factor{i+1}" for i in range(w.shape[1])]
@@ -152,6 +158,15 @@ class mofa_model():
         elif grouping_instance == "views":
             groups = [self.views[g] if isinstance(g, int) else g for g in groups]                     
         return groups
+
+    def __check_factors(self, factors):
+        # Use all factors by default
+        if factors is None:
+            factors = list(range(self.nfactors))
+        # If one factor is used, wrap it in a list
+        if not isinstance(factors, Iterable) or isinstance(factors, str):
+            factors = [factors]
+        return factors
 
 
 
