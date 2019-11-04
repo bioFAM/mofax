@@ -98,11 +98,11 @@ class mofa_model():
             Boolean value if to return Z matrix as a DataFrame
         """
         groups = self.__check_groups(groups)
-        factors = self.__check_factors(factors)
-        z = np.concatenate(tuple(np.array(self.factors[group]).T[:,factors] for group in groups))
+        findices, factors = self.__check_factors(factors)
+        z = np.concatenate(tuple(np.array(self.factors[group]).T[:,findices] for group in groups))
         if df:
             z = pd.DataFrame(z)
-            z.columns = [f"Factor{i+1}" for i in range(z.shape[1])]
+            z.columns = factors
             z.index = np.concatenate(tuple(self.cells[g] for g in groups))
         return z
     
@@ -121,11 +121,11 @@ class mofa_model():
             Boolean value if to return W matrix as a DataFrame
         """
         views = self.__check_views(views)
-        factors = self.__check_factors(factors)
-        w = np.concatenate(tuple(np.array(self.weights[view]).T[:,factors] for view in views))
+        findices, factors = self.__check_factors(factors)
+        w = np.concatenate(tuple(np.array(self.weights[view]).T[:,findices] for view in views))
         if df:
             w = pd.DataFrame(w)
-            w.columns = [f"Factor{i+1}" for i in range(w.shape[1])]
+            w.columns = factors
             w.index = np.concatenate(tuple(self.features[m] for m in views))
         return w
     
@@ -167,9 +167,10 @@ class mofa_model():
         if not isinstance(factors, Iterable) or isinstance(factors, str):
             factors = [factors]
         # Convert factor names (FactorN) to factor indices (N-1)
-        factors = [int(fi.replace("Factor", ""))-1 if isinstance(fi, str) else fi for fi in factors]  
-        return factors
+        findices = [int(fi.replace("Factor", ""))-1 if isinstance(fi, str) else fi for fi in factors]  
+        factors = [f"Factor{i+i}" if isinstance(fi, int) else fi for fi in factors]  
 
+        return (findices, factors)
 
 
 
