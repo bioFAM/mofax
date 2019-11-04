@@ -39,7 +39,7 @@ Simple data structures (e.g. lists or dictionaries) are returned upon calling th
 ```python
 model.shape
 # returns (10138, 1124)
-#       n_cells^  ^n_features
+#         cells^  ^features
 ```
 
 More complex structures are returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
