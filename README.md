@@ -14,7 +14,7 @@ pip install git+https://github.com/gtca/mpp
 
 ### Training a factor model
 
-Please see [MOFA+ GitHub repository](https://github.com/bioFAM/MOFA2) for more information on training the factor models with MOFA+.
+Please see the [MOFA+ GitHub repository](https://github.com/bioFAM/MOFA2) for more information on training the factor models with MOFA+.
 
 ### Loading the model
 
@@ -26,7 +26,7 @@ import mpp
 model = load_model("trained_mofaplus_model.hdf5")
 ```
 
-The connection is created in the readonly mode by default and cen be terminated by calling the `close()` method on the model object.
+The connection is created in the readonly mode by default and can be terminated by calling the `close()` method on the model object.
 
 #### Model object
 
@@ -34,9 +34,27 @@ Model object is an instance of a `mofa_model` class that wraps around the HDF5 c
 
 #### Model methods
 
-Simple data structures (e.g. lists or dictionaries) are returned upon calling the properties of the mofa model, e.g. `model.shape`.
+Simple data structures (e.g. lists or dictionaries) are returned upon calling the properties of the mofa model, e.g. `model.shape`:
+
+```python
+model.shape
+# returns (10138, 1124)
+#       n_cells^  ^n_features
+```
 
 More complex structures are returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
+
+
+```python
+model.get_cells().head()
+# returns a pandas.DataFrame object:
+# 	group	cell
+# 0	T_CD4	AATCCTGCACATCGCC-1
+# 1	T_CD4	AAGACGTGTGATGCCC-1
+# 2	T_CD4	AAGGAGCGTCGGCATG-1
+# 3	T_CD4	AATCCGTCACGAGACG-1
+# 4	T_CD4	ACACCGAGGAGGTTGA-1
+```
 
 #### Utility functions
 
