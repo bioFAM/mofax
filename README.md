@@ -1,6 +1,6 @@
 # mpp: MOFA+ in Python
 
-Working with trained factor models in Python.
+Work with trained factor models in Python.
 
 This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python – hence the name. For more information on the multi-omics factor analysis v2 framework please see [this GitHub repository](https://github.com/bioFAM/MOFA2).
 
@@ -67,3 +67,6 @@ A few basic plots can be constructed with plotting functions provided such as `p
 Examples of similar plots with Bokeh or plotly might be added in future (and pull requests are always welcome).
 
 
+## Contributions
+
+In case you work with MOFA+ models in Python, you might find `mpp` useful. Please consider contributing to this module by suggesting the missing functionality to be implemented [in the form of issues](https://github.com/gtca/mpp/issues) and in the form of [pull requests](https://github.com/gtca/mpp/pulls).
