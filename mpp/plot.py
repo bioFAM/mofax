@@ -84,6 +84,7 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
     col_colors = list(features_col.loc[features,:].iloc[:,0]) if features_col is not None else None
 
     cg = sns.clustermap(w, cmap=cmap, col_colors = col_colors, **kwargs)
+    sns.despine(offset=10, trim=True)
     plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
 
     return cg
@@ -117,8 +118,8 @@ def plot_factor(model: mofa_model, factors: Union[int, List[int]], x="factor", y
     ----------
     model : mofa_model
         Factor model
-    factors
-        Index of a factor (or indices of factors) to use
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
     x : optional
         Variable to plot along X axis (factor identity by default)
     y : optional
@@ -140,8 +141,10 @@ def plot_factor(model: mofa_model, factors: Union[int, List[int]], x="factor", y
     ax = sns.stripplot(x=x, y=y, hue=hue, data=z, dodge=True, **kwargs)
     sns.despine(offset=10, trim=True)
 
+    return ax
 
-def plot_r2(model: mofa_model, **kwargs):
+
+def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None, **kwargs):
     """
     Plot R2 values for the model (draft)
 
@@ -150,5 +153,7 @@ def plot_r2(model: mofa_model, **kwargs):
     model : mofa_model
         Factor model
     """
-    r2_df = get_r2(model)
-    sns.heatmap(r2_df.sort_values("R2").loc[:,["R2"]], **kwargs)
+    r2_df = get_r2(model, factors=factors)
+    g = sns.heatmap(r2_df.sort_values("R2").loc[:,["R2"]], **kwargs)
+
+    return g

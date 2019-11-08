@@ -190,8 +190,9 @@ def get_factor_r2(model: mofa_model, factor_index: int) -> pd.DataFrame:
                          ignore_index=True)
     return r2_df
 
-def get_r2(model: mofa_model) -> pd.DataFrame:
+def get_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None) -> pd.DataFrame:
+    findices, factors = self.__check_factors(factors)
     r2 = pd.DataFrame()
-    for fi in range(model.nfactors):
+    for fi in factors:
         r2 = r2.append(get_factor_r2(model, fi))
     return r2
