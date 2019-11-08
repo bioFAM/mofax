@@ -149,9 +149,9 @@ class mofa_model():
         # Do not accept boolean values
         if any([isinstance(g, bool) for g in groups]):
             if grouping_instance == "groups":
-                raise ValueError("Please provide relevant group names. Boolean values are not accepted. Group names of this model are " + ', '.join(self.groups))
+                raise ValueError(f"Please provide relevant group names. Boolean values are not accepted. Group names of this model are {', '.join(self.groups)}.")
             elif grouping_instance == "views":
-                raise ValueError("Please provide relevant view names. Boolean values are not accepted. View names of this model are " + ', '.join(self.views))
+                raise ValueError(f"Please provide relevant view names. Boolean values are not accepted. View names of this model are {', '.join(self.views)}.")
         # Convert integers to group names
         if grouping_instance == "groups":
             groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
