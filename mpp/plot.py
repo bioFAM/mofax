@@ -81,9 +81,9 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
 
     w = w[w.feature.isin(features)].set_index("feature").T
 
-    features_col = list(features_groups.loc[features,:].iloc[:,0]) if features_groups is not None else None
+    col_colors = list(features_col.loc[features,:].iloc[:,0]) if features_col is not None else None
 
-    cg = sns.clustermap(w, cmap=cmap, col_colors = features_col, **kwargs)
+    cg = sns.clustermap(w, cmap=cmap, col_colors = col_colors, **kwargs)
     plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
 
     return cg
