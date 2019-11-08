@@ -172,27 +172,24 @@ class mofa_model():
 
         return (findices, factors)
 
+    def get_factor_r2(self, factor_index: int) -> pd.DataFrame:
+        r2_df = pd.DataFrame()
+        for view in self.views:
+            for group in self.groups:
+                crossprod = np.array(self.expectations["Z"][group][[factor_index],:]).T.dot(np.array(self.expectations["W"][view][[factor_index],:]))
+                y = np.array(self.data[view][group])
+                a = np.sum((y - crossprod)**2)
+                b = np.sum(y ** 2)
+                r2_df = r2_df.append({"View": view,
+                              "Group": group,
+                              "Factor": f"Factor{factor_index+1}",
+                              "R2": 1 - a/b},
+                             ignore_index=True)
+        return r2_df
 
-
-
-def get_factor_r2(model: mofa_model, factor_index: int) -> pd.DataFrame:
-    r2_df = pd.DataFrame()
-    for view in model.views:
-        for group in model.groups:
-            crossprod = np.array(model.expectations["Z"][group][[factor_index],:]).T.dot(np.array(model.expectations["W"][view][[factor_index],:]))
-            y = np.array(model.data[view][group])
-            a = np.sum((y - crossprod)**2)
-            b = np.sum(y ** 2)
-            r2_df = r2_df.append({"View": view,
-                          "Group": group,
-                          "Factor": f"Factor{factor_index+1}",
-                          "R2": 1 - a/b},
-                         ignore_index=True)
-    return r2_df
-
-def get_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None) -> pd.DataFrame:
-    findices, factors = model.__check_factors(factors)
-    r2 = pd.DataFrame()
-    for fi in factors:
-        r2 = r2.append(get_factor_r2(model, fi))
-    return r2
+    def get_r2(self, factors: Union[int, List[int], str, List[str]] = None) -> pd.DataFrame:
+        findices, factors = self.__check_factors(factors)
+        r2 = pd.DataFrame()
+        for fi in findices:
+            r2 = r2.append(self.get_factor_r2(fi))
+        return r2

@@ -1,5 +1,4 @@
 from .core import mofa_model
-from .core import get_r2
 
 from typing import Union, List
 import numpy as np
@@ -110,7 +109,7 @@ def plot_factors(model: mofa_model, x="Factor1", y="Factor2", hist=False, **kwar
     sns_plot(x=x, y=y, data=z, **kwargs)
     sns.despine(offset=10, trim=True)
 
-def plot_factor(model: mofa_model, factors: Union[int, List[int]], x="factor", y="value", hue="group", violin=False, **kwargs):
+def plot_factor(model: mofa_model, factors: Union[int, List[int]] = None, x="factor", y="value", hue="group", violin=False, **kwargs):
     """
     Plot factor values as stripplots (jitter plots)
 
@@ -153,7 +152,7 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     model : mofa_model
         Factor model
     """
-    r2_df = get_r2(model, factors=factors)
+    r2_df = model.get_r2(factors=factors)
     g = sns.heatmap(r2_df.sort_values("R2").loc[:,["R2"]], **kwargs)
 
     return g
