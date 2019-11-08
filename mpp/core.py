@@ -168,7 +168,7 @@ class mofa_model():
             factors = [factors]
         # Convert factor names (FactorN) to factor indices (N-1)
         findices = [int(fi.replace("Factor", ""))-1 if isinstance(fi, str) else fi for fi in factors]  
-        factors = [f"Factor{i+i}" if isinstance(fi, int) else fi for fi in factors]  
+        factors = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]  
 
         return (findices, factors)
 
