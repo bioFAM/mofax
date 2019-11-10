@@ -22,6 +22,8 @@ setuptools.setup(
     install_requires=[
         'numpy',
         'pandas',
+        'matplotlib',
+        'seaborn',
         'h5py'
     ]
 )
