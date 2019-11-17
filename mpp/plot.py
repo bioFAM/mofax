@@ -9,7 +9,7 @@ import seaborn as sns
 sns.set_style("ticks")
 sns.set_palette("Set2")
 
-def plot_weights(model: mofa_model, factor="Factor1", n_features: int = 10, **kwargs):
+def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 10, **kwargs):
     """
     Plot loadings for a specific factor
 
@@ -19,20 +19,56 @@ def plot_weights(model: mofa_model, factor="Factor1", n_features: int = 10, **kw
         Factor model
     factor : optional
         Factor to use (default is Factor1)
+    view : options
+        The view to get the loadings of the factor for (first view by default)
     n_features : optional
         Number of features to label with most positive and most negative loadings
     """
-    w = model.get_weights(factors=factor, df=True).sort_values(factor)
-    w["rank"] = np.arange(w.shape[0])
-    plot = sns.scatterplot(x="rank", y=factor, data=w, **kwargs)
+    w = model.get_weights(views=views, factors=factor, df=True)
+    w = pd.melt(w.reset_index().rename(columns={"index": "feature"}), 
+            id_vars="feature", var_name="factor", value_name="value")
+    w["abs_value"] = abs(w.value)
+
+    # Assign ranks to features, per factor
+    w["rank"] = w.groupby("factor")["value"].rank(ascending=False)
+    w["abs_rank"] = w.groupby("factor")["abs_value"].rank(ascending=False)
+    w = w.sort_values(["factor", "abs_rank"], ascending=True)
+
+    # Construct the plot
+    plot = sns.lineplot(x="rank", y="value", data=w, c="black",
+                        markers=True, dashes=False, linewidth=.5)
     sns.despine(offset=10, trim=True)
-    for line in list(range(-n_features, 0)) + list(range(n_features)):
-        plot.text(w.iloc[line]["rank"], w.iloc[line][factor], w.index[line], horizontalalignment='left', size='medium', color='black', weight='regular')
+
+    # Plot top features as dots
+    sns.scatterplot(x="rank", y="value", data=w[w["abs_rank"] < n_features], 
+                    linewidth=.2, s=25, alpha=.75)
+
+    # Label top loadings
+    y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
+    y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
+
+    x_rank_offset = 10
+    y_repel_coef = 0.02
+
+    for i, point in w[w["abs_rank"] < n_features].iterrows():
+        if point["value"] >= 0:
+            plot.text(x_rank_offset, y_start_pos-y_repel_coef*(point["rank"]-1), point["feature"], 
+                      horizontalalignment='left', size=5, color='black', weight='regular')
+        else:
+            plot.text(point["rank"]-x_rank_offset, y_start_neg+y_repel_coef*(w.shape[0]-point["rank"]), point["feature"], 
+                      horizontalalignment='left', size=5, color='black', weight='regular')
+
+    # Set plot axes labels
+    factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
+    plot.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
+
+    return plot
 
 
 def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = None,
                          n_features: int = None, w_threshold: float = None, 
-                         features_col: pd.DataFrame = None, cmap = None, **kwargs):
+                         features_col: pd.DataFrame = None, cmap = None,
+                         xticklabels_size=10, **kwargs):
     """
     Plot loadings for top features in a heatmap
 
@@ -82,9 +118,9 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
 
     col_colors = list(features_col.loc[features,:].iloc[:,0]) if features_col is not None else None
 
-    cg = sns.clustermap(w, cmap=cmap, col_colors = col_colors, **kwargs)
+    cg = sns.clustermap(w, cmap=cmap, col_colors=col_colors, xticklabels=True, **kwargs)
+    plt.setp(cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
     sns.despine(offset=10, trim=True)
-    plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
 
     return cg
 
@@ -143,7 +179,8 @@ def plot_factor(model: mofa_model, factors: Union[int, List[int]] = None, x="fac
     return ax
 
 
-def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None, **kwargs):
+def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None, 
+            view=0, **kwargs):
     """
     Plot R2 values for the model (draft)
 
@@ -151,8 +188,17 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     ----------
     model : mofa_model
         Factor model
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    view : optional
+        Make a plot for a cetrain view (first view by default)
     """
-    r2_df = model.get_r2(factors=factors)
-    g = sns.heatmap(r2_df.sort_values("R2").loc[:,["R2"]], **kwargs)
+    r2 = model.get_r2(factors=factors)
+    # Select a certain view if necessary
+    if view is not None:
+        view = m.views[view] if isinstance(view, int) else view
+        r2 = r2[r2["View"] == view]
+    r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
+    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
     return g
