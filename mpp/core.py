@@ -198,3 +198,35 @@ class mofa_model():
         for fi in findices:
             r2 = r2.append(self.get_factor_r2(fi))
         return r2
+    
+    def get_factor_r2_custom_groups(model, factor_index: int, groups_df: pd.DataFrame) -> pd.DataFrame:
+        r2_df = pd.DataFrame()
+        
+        custom_groups = groups_df.iloc[:,0].unique()
+        
+        z = np.concatenate([model.expectations["Z"][group][:,:] for group in model.groups], axis=1)
+        
+        z_custom = dict()
+        for group in custom_groups:
+            z_custom[group] = z[:,np.where(groups_df.iloc[:,0] == group)[0]]
+        del z
+        
+        for view in model.views:
+            
+            y_view = np.concatenate([model.data[view][group][:,:] for group in model.groups], axis=0)
+            
+            data_view = dict()
+            for group in custom_groups:
+                data_view[group] = y_view[np.where(groups_df.iloc[:,0] == group)[0],:]
+                
+            for group in custom_groups:
+                crossprod = np.array(z_custom[group][[factor_index],:]).T.dot(np.array(model.expectations["W"][view][[factor_index],:]))
+                y = np.array(data_view[group])
+                a = np.sum((y - crossprod)**2)
+                b = np.sum(y ** 2)
+                r2_df = r2_df.append({"View": view,
+                              "Group": group,
+                              "Factor": f"Factor{factor_index+1}",
+                              "R2": 1 - a/b},
+                             ignore_index=True)
+        return r2_df
