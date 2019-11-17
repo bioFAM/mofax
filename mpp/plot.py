@@ -132,6 +132,54 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
     return cg
 
 
+def plot_weights_scatter(model: mofa_model, x="Factor1", y="Factor2", hist=False, 
+                         n_features: int = 10, label_size: int = 5, **kwargs):
+    """
+    Plot factor loadings for two factors
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    x : optional
+        Factor which loadings to plot along X axis (Factor1 by default)
+    y : optional
+        Factor which loadings to plot along Y axis (Factor2 by default)
+    hist : optional
+        Boolean value if to add marginal histograms to the scatterplot (jointplot)
+    n_features : optional
+        Number of features to label (default is 10)
+    label_size : optional
+        Font size of feature labels (default is 5)
+    """
+    w = model.get_weights(factors = [x, y], df=True).rename_axis("feature").reset_index()
+
+    # Get features to label
+    wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
+    wm = wm.assign(value_abs = lambda x: x.value.abs())
+    wm["factor"] = wm["factor"].astype('category')
+
+    sns_plot = sns.jointplot if hist else sns.scatterplot
+    plot = sns_plot(x=x, y=y, data=w, **kwargs)
+    sns.despine(offset=10, trim=True)
+
+    # Label some features
+    add_text = plot.ax_joint.text if hist else plot.text 
+    if n_features is not None and n_features > 0:
+        # Get a subset of features
+        wm = wm.sort_values(['factor','value_abs'], ascending=False).groupby('factor')
+        features = wm.head(n_features).feature.unique()
+        w_label = w[w.feature.isin(features)].set_index("feature")
+        del wm
+
+        # Add labels to the plot
+        for i, point in w_label.iterrows():
+            add_text(point[x], point[y], point.name,
+                      horizontalalignment='left', size=label_size, color='black', weight='regular')
+
+    return plot
+
+
 def plot_factors(model: mofa_model, x="Factor1", y="Factor2", hist=False, **kwargs):
     """
     Plot factor values for two factors
