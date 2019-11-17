@@ -9,7 +9,8 @@ import seaborn as sns
 sns.set_style("ticks")
 sns.set_palette("Set2")
 
-def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 10, **kwargs):
+def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 10, 
+                 label_size=5, x_rank_offset=10, y_repel_coef=0.03, **kwargs):
     """
     Plot loadings for a specific factor
 
@@ -23,6 +24,12 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
         The view to get the loadings of the factor for (first view by default)
     n_features : optional
         Number of features to label with most positive and most negative loadings
+    label_size : optional
+        Font size of feature labels (default is 5)
+    x_rank_offset : optional
+        Offset the feature labels from the left/right side (by 10 points by default)
+    y_repel_coef : optional
+        Parameter to repel feature labels along the y axis (0.03 by default)
     """
     w = model.get_weights(views=view, factors=factor, df=True)
     w = pd.melt(w.reset_index().rename(columns={"index": "feature"}), 
@@ -47,16 +54,13 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
     y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
     y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
 
-    x_rank_offset = 10
-    y_repel_coef = 0.02
-
     for i, point in w[w["abs_rank"] < n_features].iterrows():
         if point["value"] >= 0:
             plot.text(x_rank_offset, y_start_pos-y_repel_coef*(point["rank"]-1), point["feature"], 
-                      horizontalalignment='left', size=5, color='black', weight='regular')
+                      horizontalalignment='left', size=label_size, color='black', weight='regular')
         else:
-            plot.text(point["rank"]-x_rank_offset, y_start_neg+y_repel_coef*(w.shape[0]-point["rank"]), point["feature"], 
-                      horizontalalignment='left', size=5, color='black', weight='regular')
+            plot.text(w.shape[0]-x_rank_offset, y_start_neg+y_repel_coef*(w.shape[0]-point["rank"]), point["feature"], 
+                      horizontalalignment='left', size=label_size, color='black', weight='regular')
 
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
