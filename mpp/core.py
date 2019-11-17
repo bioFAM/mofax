@@ -198,7 +198,7 @@ class mofa_model():
         for fi in findices:
             r2 = r2.append(self.get_factor_r2(fi))
         return r2
-    
+
     def get_factor_r2_custom_groups(model, factor_index: int, groups_df: pd.DataFrame) -> pd.DataFrame:
         r2_df = pd.DataFrame()
         
@@ -230,3 +230,10 @@ class mofa_model():
                               "R2": 1 - a/b},
                              ignore_index=True)
         return r2_df
+
+    def get_r2_custom_groups(self, groups_df: pd.DataFrame, factors: Union[int, List[int], str, List[str]] = None) -> pd.DataFrame:
+        findices, factors = self.__check_factors(factors)
+        r2 = pd.DataFrame()
+        for fi in findices:
+            r2 = r2.append(self.get_factor_r2_custom_groups(fi, groups_df))
+        return r2

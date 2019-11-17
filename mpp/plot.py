@@ -209,3 +209,31 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
     return g
+
+
+def plot_r2_custom_groups(model: mofa_model, groups_df: pd.DataFrame,
+                          factors: Union[int, List[int], str, List[str]] = None, 
+                          view=0, **kwargs):
+    """
+    Plot R2 values for the model (draft)
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    groups_df : pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    view : optional
+        Make a plot for a cetrain view (first view by default)
+    """
+    r2 = model.get_r2_custom_groups(factors=factors, groups_df=groups_df)
+    # Select a certain view if necessary
+    if view is not None:
+        view = model.views[view] if isinstance(view, int) else view
+        r2 = r2[r2["View"] == view]
+    r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
+    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
+
+    return g
