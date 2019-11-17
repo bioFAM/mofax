@@ -66,7 +66,7 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
 
 
 def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = None,
-                         n_features: int = None, w_threshold: float = None, 
+                         n_features: int = None, w_threshold: float = None, w_abs: bool = False,
                          features_col: pd.DataFrame = None, cmap = None,
                          xticklabels_size=10, **kwargs):
     """
@@ -82,6 +82,8 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
         Number of features for each factor by their absolute value (10 by default)
     w_threshold : optional
         Absolute loading threshold for a feature to plot (no threshold by default)
+    w_abs : optional
+        If plot absolute loadings values
     features_col : optional
         Pandas data frame with index by feature name with the first column 
         containing the colour for every feature
@@ -97,7 +99,7 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
         cmap = sns.diverging_palette(240, 10, n=9, as_cmap=True)
 
     # Fetch weights for the relevant factors
-    w = model.get_weights(factors=factors, df=True).rename_axis("feature").reset_index()
+    w = model.get_weights(factors=factors, df=True, absolute_values=w_abs).rename_axis("feature").reset_index()
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
     wm = wm.assign(value_abs = lambda x: x.value.abs())
     wm["factor"] = wm["factor"].astype('category')
@@ -197,7 +199,7 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     r2 = model.get_r2(factors=factors)
     # Select a certain view if necessary
     if view is not None:
-        view = m.views[view] if isinstance(view, int) else view
+        view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)

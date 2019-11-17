@@ -107,7 +107,8 @@ class mofa_model():
         return z
     
     def get_weights(self, views: Union[str, int, List[str], List[int]] = None,
-                    factors: Union[int, List[int]] = None, df = False):
+                    factors: Union[int, List[int]] = None, df=False,
+                    absolute_values: bool = False):
         """
         Get the matrix with loadings as a NumPy array or as a DataFrame (df=True).
 
@@ -119,6 +120,8 @@ class mofa_model():
             Indices of factors to use
         df : optional
             Boolean value if to return W matrix as a DataFrame
+        absolute_values : optional
+            If return absolute values for weights
         """
         views = self.__check_views(views)
         findices, factors = self.__check_factors(factors)
@@ -127,6 +130,8 @@ class mofa_model():
             w = pd.DataFrame(w)
             w.columns = factors
             w.index = np.concatenate(tuple(self.features[m] for m in views))
+        if absolute_values:
+            w = np.absolute(w)
         return w
     
     def __check_views(self, views):                  
