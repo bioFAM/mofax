@@ -24,7 +24,7 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
     n_features : optional
         Number of features to label with most positive and most negative loadings
     """
-    w = model.get_weights(views=views, factors=factor, df=True)
+    w = model.get_weights(views=view, factors=factor, df=True)
     w = pd.melt(w.reset_index().rename(columns={"index": "feature"}), 
             id_vars="feature", var_name="factor", value_name="value")
     w["abs_value"] = abs(w.value)
