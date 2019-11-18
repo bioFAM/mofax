@@ -10,7 +10,8 @@ sns.set_style("ticks")
 sns.set_palette("Set2")
 
 def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 10, 
-                 label_size=5, x_rank_offset=10, y_repel_coef=0.03, **kwargs):
+                 label_size=5, x_rank_offset=10, 
+                 y_repel_coef=0.02, attract_to_points=True, **kwargs):
     """
     Plot loadings for a specific factor
 
@@ -30,6 +31,8 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
         Offset the feature labels from the left/right side (by 10 points by default)
     y_repel_coef : optional
         Parameter to repel feature labels along the y axis (0.03 by default)
+    attract_to_points : optional
+        If place labels according to the Y coordinate of the point (False by default)
     """
     w = model.get_weights(views=view, factors=factor, df=True)
     w = pd.melt(w.reset_index().rename(columns={"index": "feature"}), 
@@ -54,14 +57,22 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
     y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
     y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
 
-    for i, point in w[w["abs_rank"] < n_features].iterrows():
-        if point["value"] >= 0:
-            plot.text(x_rank_offset, y_start_pos-y_repel_coef*(point["rank"]-1), point["feature"], 
+     y_prev = y_start_pos
+    for i, point in w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows():
+            y_loc = y_prev-y_repel_coef if i!=0 else y_start_pos
+            y_loc = min(point["value"], y_loc) if attract_to_points else y_loc
+            plot.text(x_rank_offset, y_loc, point["feature"], 
                       horizontalalignment='left', size=label_size, color='black', weight='regular')
-        else:
-            plot.text(w.shape[0]-x_rank_offset, y_start_neg+y_repel_coef*(w.shape[0]-point["rank"]), point["feature"], 
-                      horizontalalignment='left', size=label_size, color='black', weight='regular')
+            y_prev = y_loc
 
+    y_prev = y_start_neg
+    for i, point in w[(w["abs_rank"] < n_features) & (w["value"] < 0)].reset_index().iterrows():
+        y_loc = y_prev+y_repel_coef if i!=0 else y_start_neg
+        y_loc = max(point["value"], y_loc) if attract_to_points else y_loc
+        plot.text(w.shape[0]-x_rank_offset, y_loc, point["feature"], 
+                  horizontalalignment='left', size=label_size, color='black', weight='regular')
+        y_prev = y_loc
+    
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
     plot.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
@@ -175,7 +186,7 @@ def plot_weights_scatter(model: mofa_model, x="Factor1", y="Factor2", hist=False
         # Add labels to the plot
         for i, point in w_label.iterrows():
             add_text(point[x], point[y], point.name,
-                      horizontalalignment='left', size=label_size, color='black', weight='regular')
+                     horizontalalignment='left', size=label_size, color='black', weight='regular')
 
     return plot
 
@@ -295,7 +306,7 @@ def plot_r2_custom_groups(model: mofa_model, groups_df: pd.DataFrame,
     r2_df.index = r2_df.index.astype("category")
     r2_df.index = r2_df.index.reorder_categories(sorted(r2_df.index.categories, key = lambda x: int(x.split("Factor")[1])))
     r2_df = r2_df.sort_values("Factor")
-    
+
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
     plt.setp(g.yaxis.get_ticklabels(), rotation=0)
