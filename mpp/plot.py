@@ -17,6 +17,7 @@ def plot_weights(
     n_features: int = 10,
     label_size=5,
     x_rank_offset=10,
+    x_rank_offset_neg=0,
     y_repel_coef=0.03,
     attract_to_points=True,
     **kwargs,
@@ -38,6 +39,8 @@ def plot_weights(
         Font size of feature labels (default is 5)
     x_rank_offset : optional
         Offset the feature labels from the left/right side (by 10 points by default)
+    x_rank_offset_neg : optional
+        Offset but for the negative loadings only (i.e. from the right side)
     y_repel_coef : optional
         Parameter to repel feature labels along the y axis (0.03 by default)
     attract_to_points : optional
@@ -80,9 +83,10 @@ def plot_weights(
     )
 
     # Label top loadings
-    y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
-    y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
 
+    # Positive weights
+    y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
+    
     y_prev = y_start_pos
     for i, point in (
         w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows()
@@ -100,6 +104,9 @@ def plot_weights(
         )
         y_prev = y_loc
 
+    # Negative weights
+    y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
+
     y_prev = y_start_neg
     for i, point in (
         w[(w["abs_rank"] < n_features) & (w["value"] < 0)].reset_index().iterrows()
@@ -107,7 +114,7 @@ def plot_weights(
         y_loc = y_prev + y_repel_coef if i != 0 else y_start_neg
         y_loc = max(point["value"], y_loc) if attract_to_points else y_loc
         plot.text(
-            w.shape[0] - x_rank_offset,
+            w.shape[0] - x_rank_offset_neg,
             y_loc,
             point["feature"],
             horizontalalignment="left",
