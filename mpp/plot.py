@@ -59,11 +59,11 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
 
      y_prev = y_start_pos
     for i, point in w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows():
-            y_loc = y_prev-y_repel_coef if i!=0 else y_start_pos
-            y_loc = min(point["value"], y_loc) if attract_to_points else y_loc
-            plot.text(x_rank_offset, y_loc, point["feature"], 
-                      horizontalalignment='left', size=label_size, color='black', weight='regular')
-            y_prev = y_loc
+        y_loc = y_prev-y_repel_coef if i!=0 else y_start_pos
+        y_loc = min(point["value"], y_loc) if attract_to_points else y_loc
+        plot.text(x_rank_offset, y_loc, point["feature"], 
+                  horizontalalignment='left', size=label_size, color='black', weight='regular')
+        y_prev = y_loc
 
     y_prev = y_start_neg
     for i, point in w[(w["abs_rank"] < n_features) & (w["value"] < 0)].reset_index().iterrows():
