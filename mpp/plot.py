@@ -288,7 +288,10 @@ def plot_factors(
     kde=False,
     groups_df=None,
     linewidth=0,
-    size=10,
+    size=5,
+    legend=False,
+    legend_loc='best',
+    legend_prop=None,
     **kwargs,
 ):
     """
@@ -311,7 +314,7 @@ def plot_factors(
     linewidth : optional
         Linewidth argument for dots (default is 0)
     size : optional
-        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 10)
+        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
     """
     z = model.get_factors(factors=[x, y], df=True)
 
@@ -326,12 +329,16 @@ def plot_factors(
             # Construct a custom joint plot
             # in order to colour cells
             g = sns.JointGrid(x, y, z)
+            group_labels = []
             for group, group_cells in z.groupby(grouping_var):
                 sns.distplot(group_cells[x], ax=g.ax_marg_x, kde=kde, hist=hist)
                 sns.distplot(
                     group_cells[y], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
                 )
                 g.ax_joint.plot(group_cells[x], group_cells[y], "o", ms=size, **kwargs)
+                group_labels.append(group)
+            if legend:
+                legend = g.ax_joint.legend(labels=group_labels, loc=legend_loc, prop=legend_prop)
         else:
             g = sns.jointplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
     else:
