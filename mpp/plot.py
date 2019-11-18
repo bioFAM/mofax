@@ -17,7 +17,7 @@ def plot_weights(
     n_features: int = 10,
     label_size=5,
     x_rank_offset=10,
-    y_repel_coef=0.02,
+    y_repel_coef=0.03,
     attract_to_points=True,
     **kwargs,
 ):
