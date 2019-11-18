@@ -133,6 +133,8 @@ def plot_weights_heatmap(
     features_col: pd.DataFrame = None,
     cmap=None,
     xticklabels_size=10,
+    cluster_factors=True,
+    cluster_features=True,
     **kwargs,
 ):
     """
@@ -155,6 +157,12 @@ def plot_weights_heatmap(
         containing the colour for every feature
     cmap : optional
         Color map (blue-to-red divergent palette with by default)
+    xticklabels_size : optional
+        Font size for features labels (default is 10)
+    cluster_factors : optional
+        If cluster factors (in rows; default is True)
+    cluster_features : optional
+        If cluster features (in columns; default in True)
     """
 
     # Set defaults
@@ -194,7 +202,15 @@ def plot_weights_heatmap(
         else None
     )
 
-    cg = sns.clustermap(w, cmap=cmap, col_colors=col_colors, xticklabels=True, **kwargs)
+    cg = sns.clustermap(
+        w,
+        cmap=cmap,
+        col_colors=col_colors,
+        xticklabels=True,
+        row_cluster=cluster_factors,
+        col_cluster=cluster_features,
+        **kwargs,
+    )
     sns.despine(offset=10, trim=True)
 
     plt.setp(cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
