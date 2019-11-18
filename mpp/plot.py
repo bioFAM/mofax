@@ -280,7 +280,17 @@ def plot_weights_scatter(
     return plot
 
 
-def plot_factors(model: mofa_model, x="Factor1", y="Factor2", hist=False, **kwargs):
+def plot_factors(
+    model: mofa_model,
+    x="Factor1",
+    y="Factor2",
+    hist=True,
+    kde=False,
+    groups_df=None,
+    linewidth=0,
+    size=10,
+    **kwargs,
+):
     """
     Plot factor values for two factors
 
@@ -294,11 +304,52 @@ def plot_factors(model: mofa_model, x="Factor1", y="Factor2", hist=False, **kwar
         Factor to plot along Y axis (Factor2 by default)
     hist : optional
         Boolean value if to add marginal histograms to the scatterplot (jointplot)
+    kde : optional
+        Boolean value if to add marginal distributions to the scatterplot (jointplot)
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    linewidth : optional
+        Linewidth argument for dots (default is 0)
+    size : optional
+        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 10)
     """
     z = model.get_factors(factors=[x, y], df=True)
-    sns_plot = sns.jointplot if hist else sns.scatterplot
-    sns_plot(x=x, y=y, data=z, **kwargs)
+
+    # Assign a group to every cell if it is provided
+    if groups_df is not None:
+        z = z.rename_axis("cell").reset_index()
+        z = z.set_index("cell").join(groups_df).reset_index()
+        grouping_var = groups_df.columns[0]
+
+    if hist or kde:
+        if group_df is not None:
+            # Construct a custom joint plot
+            # in order to colour cells
+            g = sns.JointGrid(x, y, z)
+            for group, group_cells in z.groupby(grouping_var):
+                sns.distplot(group_cells[x], ax=g.ax_marg_x, kde=kde, hist=hist)
+                sns.distplot(
+                    group_cells[y], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
+                )
+                g.ax_joint.plot(group_cells[x], group_cells[y], "o", ms=size, **kwargs)
+        else:
+            g = sns.jointplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
+    else:
+        if group_df is not None:
+            g = sns.scatterplot(
+                x=x,
+                y=y,
+                data=z,
+                linewidth=linewidth,
+                s=size,
+                hue=grouping_var,
+                **kwargs,
+            )
+        else:
+            g = sns.scatterplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
     sns.despine(offset=10, trim=True)
+
+    return g
 
 
 def plot_factor(
