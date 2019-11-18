@@ -256,6 +256,8 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
+    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
+
     return g
 
 
@@ -283,5 +285,7 @@ def plot_r2_custom_groups(model: mofa_model, groups_df: pd.DataFrame,
         r2 = r2[r2["View"] == view]
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
+
+    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
