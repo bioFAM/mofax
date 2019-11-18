@@ -9,9 +9,18 @@ import seaborn as sns
 sns.set_style("ticks")
 sns.set_palette("Set2")
 
-def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 10, 
-                 label_size=5, x_rank_offset=10, 
-                 y_repel_coef=0.02, attract_to_points=True, **kwargs):
+
+def plot_weights(
+    model: mofa_model,
+    factor="Factor1",
+    view=0,
+    n_features: int = 10,
+    label_size=5,
+    x_rank_offset=10,
+    y_repel_coef=0.02,
+    attract_to_points=True,
+    **kwargs,
+):
     """
     Plot loadings for a specific factor
 
@@ -35,8 +44,12 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
         If place labels according to the Y coordinate of the point (False by default)
     """
     w = model.get_weights(views=view, factors=factor, df=True)
-    w = pd.melt(w.reset_index().rename(columns={"index": "feature"}), 
-            id_vars="feature", var_name="factor", value_name="value")
+    w = pd.melt(
+        w.reset_index().rename(columns={"index": "feature"}),
+        id_vars="feature",
+        var_name="factor",
+        value_name="value",
+    )
     w["abs_value"] = abs(w.value)
 
     # Assign ranks to features, per factor
@@ -45,34 +58,65 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
     w = w.sort_values(["factor", "abs_rank"], ascending=True)
 
     # Construct the plot
-    plot = sns.lineplot(x="rank", y="value", data=w, c="black",
-                        markers=True, dashes=False, linewidth=.5)
+    plot = sns.lineplot(
+        x="rank",
+        y="value",
+        data=w,
+        c="black",
+        markers=True,
+        dashes=False,
+        linewidth=0.5,
+    )
     sns.despine(offset=10, trim=True)
 
     # Plot top features as dots
-    sns.scatterplot(x="rank", y="value", data=w[w["abs_rank"] < n_features], 
-                    linewidth=.2, s=25, alpha=.75)
+    sns.scatterplot(
+        x="rank",
+        y="value",
+        data=w[w["abs_rank"] < n_features],
+        linewidth=0.2,
+        s=25,
+        alpha=0.75,
+    )
 
     # Label top loadings
     y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
     y_start_neg = w[w.value < 0].sort_values("abs_rank").iloc[0].value
 
-     y_prev = y_start_pos
-    for i, point in w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows():
-        y_loc = y_prev-y_repel_coef if i!=0 else y_start_pos
+    y_prev = y_start_pos
+    for i, point in (
+        w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows()
+    ):
+        y_loc = y_prev - y_repel_coef if i != 0 else y_start_pos
         y_loc = min(point["value"], y_loc) if attract_to_points else y_loc
-        plot.text(x_rank_offset, y_loc, point["feature"], 
-                  horizontalalignment='left', size=label_size, color='black', weight='regular')
+        plot.text(
+            x_rank_offset,
+            y_loc,
+            point["feature"],
+            horizontalalignment="left",
+            size=label_size,
+            color="black",
+            weight="regular",
+        )
         y_prev = y_loc
 
     y_prev = y_start_neg
-    for i, point in w[(w["abs_rank"] < n_features) & (w["value"] < 0)].reset_index().iterrows():
-        y_loc = y_prev+y_repel_coef if i!=0 else y_start_neg
+    for i, point in (
+        w[(w["abs_rank"] < n_features) & (w["value"] < 0)].reset_index().iterrows()
+    ):
+        y_loc = y_prev + y_repel_coef if i != 0 else y_start_neg
         y_loc = max(point["value"], y_loc) if attract_to_points else y_loc
-        plot.text(w.shape[0]-x_rank_offset, y_loc, point["feature"], 
-                  horizontalalignment='left', size=label_size, color='black', weight='regular')
+        plot.text(
+            w.shape[0] - x_rank_offset,
+            y_loc,
+            point["feature"],
+            horizontalalignment="left",
+            size=label_size,
+            color="black",
+            weight="regular",
+        )
         y_prev = y_loc
-    
+
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
     plot.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
@@ -80,10 +124,17 @@ def plot_weights(model: mofa_model, factor="Factor1", view=0, n_features: int = 
     return plot
 
 
-def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = None,
-                         n_features: int = None, w_threshold: float = None, w_abs: bool = False,
-                         features_col: pd.DataFrame = None, cmap = None,
-                         xticklabels_size=10, **kwargs):
+def plot_weights_heatmap(
+    model: mofa_model,
+    factors: Union[int, List[int]] = None,
+    n_features: int = None,
+    w_threshold: float = None,
+    w_abs: bool = False,
+    features_col: pd.DataFrame = None,
+    cmap=None,
+    xticklabels_size=10,
+    **kwargs,
+):
     """
     Plot loadings for top features in a heatmap
 
@@ -114,10 +165,14 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
         cmap = sns.diverging_palette(240, 10, n=9, as_cmap=True)
 
     # Fetch weights for the relevant factors
-    w = model.get_weights(factors=factors, df=True, absolute_values=w_abs).rename_axis("feature").reset_index()
+    w = (
+        model.get_weights(factors=factors, df=True, absolute_values=w_abs)
+        .rename_axis("feature")
+        .reset_index()
+    )
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
-    wm = wm.assign(value_abs = lambda x: x.value.abs())
-    wm["factor"] = wm["factor"].astype('category')
+    wm = wm.assign(value_abs=lambda x: x.value.abs())
+    wm["factor"] = wm["factor"].astype("category")
 
     if n_features is None and w_threshold is not None:
         features = wm[wm.value_abs >= w_threshold].feature.unique()
@@ -125,7 +180,7 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
         if n_features is None:
             n_features = n_features_default
         # Get a subset of features
-        wm = wm.sort_values(['factor','value_abs'], ascending=False).groupby('factor')
+        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
         if w_threshold is None:
             features = wm.head(n_features).feature.unique()
         else:
@@ -133,7 +188,11 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
 
     w = w[w.feature.isin(features)].set_index("feature").T
 
-    col_colors = list(features_col.loc[features,:].iloc[:,0]) if features_col is not None else None
+    col_colors = (
+        list(features_col.loc[features, :].iloc[:, 0])
+        if features_col is not None
+        else None
+    )
 
     cg = sns.clustermap(w, cmap=cmap, col_colors=col_colors, xticklabels=True, **kwargs)
     sns.despine(offset=10, trim=True)
@@ -143,8 +202,15 @@ def plot_weights_heatmap(model: mofa_model, factors: Union[int, List[int]] = Non
     return cg
 
 
-def plot_weights_scatter(model: mofa_model, x="Factor1", y="Factor2", hist=False, 
-                         n_features: int = 10, label_size: int = 5, **kwargs):
+def plot_weights_scatter(
+    model: mofa_model,
+    x="Factor1",
+    y="Factor2",
+    hist=False,
+    n_features: int = 10,
+    label_size: int = 5,
+    **kwargs,
+):
     """
     Plot factor loadings for two factors
 
@@ -163,30 +229,37 @@ def plot_weights_scatter(model: mofa_model, x="Factor1", y="Factor2", hist=False
     label_size : optional
         Font size of feature labels (default is 5)
     """
-    w = model.get_weights(factors = [x, y], df=True).rename_axis("feature").reset_index()
+    w = model.get_weights(factors=[x, y], df=True).rename_axis("feature").reset_index()
 
     # Get features to label
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
-    wm = wm.assign(value_abs = lambda x: x.value.abs())
-    wm["factor"] = wm["factor"].astype('category')
+    wm = wm.assign(value_abs=lambda x: x.value.abs())
+    wm["factor"] = wm["factor"].astype("category")
 
     sns_plot = sns.jointplot if hist else sns.scatterplot
     plot = sns_plot(x=x, y=y, data=w, **kwargs)
     sns.despine(offset=10, trim=True)
 
     # Label some features
-    add_text = plot.ax_joint.text if hist else plot.text 
+    add_text = plot.ax_joint.text if hist else plot.text
     if n_features is not None and n_features > 0:
         # Get a subset of features
-        wm = wm.sort_values(['factor','value_abs'], ascending=False).groupby('factor')
+        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
         features = wm.head(n_features).feature.unique()
         w_label = w[w.feature.isin(features)].set_index("feature")
         del wm
 
         # Add labels to the plot
         for i, point in w_label.iterrows():
-            add_text(point[x], point[y], point.name,
-                     horizontalalignment='left', size=label_size, color='black', weight='regular')
+            add_text(
+                point[x],
+                point[y],
+                point.name,
+                horizontalalignment="left",
+                size=label_size,
+                color="black",
+                weight="regular",
+            )
 
     return plot
 
@@ -206,12 +279,21 @@ def plot_factors(model: mofa_model, x="Factor1", y="Factor2", hist=False, **kwar
     hist : optional
         Boolean value if to add marginal histograms to the scatterplot (jointplot)
     """
-    z = model.get_factors(factors = [x, y], df=True)
+    z = model.get_factors(factors=[x, y], df=True)
     sns_plot = sns.jointplot if hist else sns.scatterplot
     sns_plot(x=x, y=y, data=z, **kwargs)
     sns.despine(offset=10, trim=True)
 
-def plot_factor(model: mofa_model, factors: Union[int, List[int]] = None, x="factor", y="value", hue="group", violin=False, **kwargs):
+
+def plot_factor(
+    model: mofa_model,
+    factors: Union[int, List[int]] = None,
+    x="factor",
+    y="value",
+    hue="group",
+    violin=False,
+    **kwargs,
+):
     """
     Plot factor values as stripplots (jitter plots)
 
@@ -245,8 +327,12 @@ def plot_factor(model: mofa_model, factors: Union[int, List[int]] = None, x="fac
     return ax
 
 
-def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = None, 
-            view=0, **kwargs):
+def plot_r2(
+    model: mofa_model,
+    factors: Union[int, List[int], str, List[str]] = None,
+    view=0,
+    **kwargs,
+):
     """
     Plot R2 values for the model (draft)
 
@@ -268,7 +354,9 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
 
     # Sort by factor index
     r2_df.index = r2_df.index.astype("category")
-    r2_df.index = r2_df.index.reorder_categories(sorted(r2_df.index.categories, key = lambda x: int(x.split("Factor")[1])))
+    r2_df.index = r2_df.index.reorder_categories(
+        sorted(r2_df.index.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
     r2_df = r2_df.sort_values("Factor")
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
@@ -278,9 +366,13 @@ def plot_r2(model: mofa_model, factors: Union[int, List[int], str, List[str]] = 
     return g
 
 
-def plot_r2_custom_groups(model: mofa_model, groups_df: pd.DataFrame,
-                          factors: Union[int, List[int], str, List[str]] = None, 
-                          view=0, **kwargs):
+def plot_r2_custom_groups(
+    model: mofa_model,
+    groups_df: pd.DataFrame,
+    factors: Union[int, List[int], str, List[str]] = None,
+    view=0,
+    **kwargs,
+):
     """
     Plot R2 values for the model (draft)
 
@@ -304,7 +396,9 @@ def plot_r2_custom_groups(model: mofa_model, groups_df: pd.DataFrame,
 
     # Sort by factor index
     r2_df.index = r2_df.index.astype("category")
-    r2_df.index = r2_df.index.reorder_categories(sorted(r2_df.index.categories, key = lambda x: int(x.split("Factor")[1])))
+    r2_df.index = r2_df.index.reorder_categories(
+        sorted(r2_df.index.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
     r2_df = r2_df.sort_values("Factor")
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
