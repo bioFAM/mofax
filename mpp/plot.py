@@ -284,7 +284,7 @@ def plot_factors(
     model: mofa_model,
     x="Factor1",
     y="Factor2",
-    hist=True,
+    hist=False,
     kde=False,
     groups_df=None,
     linewidth=0,
@@ -322,7 +322,7 @@ def plot_factors(
         grouping_var = groups_df.columns[0]
 
     if hist or kde:
-        if group_df is not None:
+        if groups_df is not None:
             # Construct a custom joint plot
             # in order to colour cells
             g = sns.JointGrid(x, y, z)
@@ -335,7 +335,7 @@ def plot_factors(
         else:
             g = sns.jointplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
     else:
-        if group_df is not None:
+        if groups_df is not None:
             g = sns.scatterplot(
                 x=x,
                 y=y,
