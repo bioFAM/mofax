@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
-from typing import Union, List
+from typing import Union, List, Optional
 from collections.abc import Iterable
 
 
@@ -226,87 +226,161 @@ class mofa_model:
 
         return (findices, factors)
 
-    def get_factor_r2(self, factor_index: int) -> pd.DataFrame:
+    def get_factor_r2(self, factor_index: int, groups_df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         r2_df = pd.DataFrame()
-        for view in self.views:
-            for group in self.groups:
-                crossprod = np.array(
-                    self.expectations["Z"][group][[factor_index], :]
-                ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
-                y = np.array(self.data[view][group])
-                a = np.sum((y - crossprod) ** 2)
-                b = np.sum(y ** 2)
-                r2_df = r2_df.append(
-                    {
-                        "View": view,
-                        "Group": group,
-                        "Factor": f"Factor{factor_index+1}",
-                        "R2": 1 - a / b,
-                    },
-                    ignore_index=True,
+        if groups_df is None:
+            for view in self.views:
+                for group in self.groups:
+                    crossprod = np.array(
+                        self.expectations["Z"][group][[factor_index], :]
+                    ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
+                    y = np.array(self.data[view][group])
+                    a = np.sum((y - crossprod) ** 2)
+                    b = np.sum(y ** 2)
+                    r2_df = r2_df.append(
+                        {
+                            "View": view,
+                            "Group": group,
+                            "Factor": f"Factor{factor_index+1}",
+                            "R2": 1 - a / b,
+                        },
+                        ignore_index=True,
+                    )
+
+        # When calculating for a custom set of groups,
+        # Z matrix has to be merged and then split 
+        # according to the new grouping of cells
+        else:
+            custom_groups = groups_df.iloc[:, 0].unique()
+
+            z = np.concatenate(
+                [self.expectations["Z"][group][:, :] for group in self.groups], axis=1
+            )
+
+            z_custom = dict()
+            for group in custom_groups:
+                z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
+            del z
+
+            for view in self.views:
+
+                y_view = np.concatenate(
+                    [self.data[view][group][:, :] for group in self.groups], axis=0
                 )
+
+                data_view = dict()
+                for group in custom_groups:
+                    data_view[group] = y_view[np.where(groups_df.iloc[:, 0] == group)[0], :]
+
+                for group in custom_groups:
+                    crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
+                        np.array(self.expectations["W"][view][[factor_index], :])
+                    )
+                    y = np.array(data_view[group])
+                    a = np.sum((y - crossprod) ** 2)
+                    b = np.sum(y ** 2)
+                    r2_df = r2_df.append(
+                        {
+                            "View": view,
+                            "Group": group,
+                            "Factor": f"Factor{factor_index+1}",
+                            "R2": 1 - a / b,
+                        },
+                        ignore_index=True,
+                    )
         return r2_df
 
     def get_r2(
-        self, factors: Union[int, List[int], str, List[str]] = None
+        self,
+        factors: Union[int, List[int], str, List[str]] = None,
+        groups_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2(fi))
+            r2 = r2.append(self.get_factor_r2(fi, groups_df=groups_df))
         return r2
 
-    def get_factor_r2_custom_groups(
-        model, factor_index: int, groups_df: pd.DataFrame
-    ) -> pd.DataFrame:
+
+    def get_factor_r2_null(self, factor_index: int, groups_df: Optional[pd.DataFrame], n_iter=100, 
+                           return_full=False, return_pvalues=True) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
-        custom_groups = groups_df.iloc[:, 0].unique()
+        if groups_df is None:
+            groups_df = self.get_cells().set_index("cell")
+
+        custom_groups = groups_df.iloc[:,0].unique()
 
         z = np.concatenate(
-            [model.expectations["Z"][group][:, :] for group in model.groups], axis=1
+            [self.expectations["Z"][group][:, :] for group in self.groups], axis=1
         )
 
-        z_custom = dict()
-        for group in custom_groups:
-            z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
-        del z
+        for i in range(n_iter+1):
+            # Canculate true group assignment for iteration 0
+            if i > 0:
+                groups_df.iloc[:,0] = groups_df.iloc[:,0].sample(frac=1).values
 
-        for view in model.views:
-
-            y_view = np.concatenate(
-                [model.data[view][group][:, :] for group in model.groups], axis=0
-            )
-
-            data_view = dict()
+            z_custom = dict()
             for group in custom_groups:
-                data_view[group] = y_view[np.where(groups_df.iloc[:, 0] == group)[0], :]
+                z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
 
-            for group in custom_groups:
-                crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
-                    np.array(model.expectations["W"][view][[factor_index], :])
-                )
-                y = np.array(data_view[group])
-                a = np.sum((y - crossprod) ** 2)
-                b = np.sum(y ** 2)
-                r2_df = r2_df.append(
-                    {
-                        "View": view,
-                        "Group": group,
-                        "Factor": f"Factor{factor_index+1}",
-                        "R2": 1 - a / b,
-                    },
-                    ignore_index=True,
-                )
-        return r2_df
+            for view in self.views:
 
-    def get_r2_custom_groups(
+                y_view = np.concatenate(
+                    [self.data[view][group][:, :] for group in self.groups], axis=0
+                )
+
+                data_view = dict()
+                for group in custom_groups:
+                    data_view[group] = y_view[np.where(groups_df.iloc[:, 0] == group)[0], :]
+
+                for group in custom_groups:
+                    crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
+                        np.array(self.expectations["W"][view][[factor_index], :])
+                    )
+                    y = np.array(data_view[group])
+                    a = np.sum((y - crossprod) ** 2)
+                    b = np.sum(y ** 2)
+                    r2_df = r2_df.append(
+                        {
+                            "View": view,
+                            "Group": group,
+                            "Factor": f"Factor{factor_index+1}",
+                            "R2": 1 - a / b,
+                            "Iteration": i
+                        },
+                        ignore_index=True,
+                    )
+
+        r2_obs = r2_df[r2_df.Iteration == 0]
+        r2_df = r2_df[r2_df.Iteration != 0]
+
+        if return_full:
+            return r2_df
+        
+        if not return_pvalues:
+            r2_null = r2_df.groupby(["Factor", "Group", "View"]).agg({"R2": ["mean", "std"]})
+            return r2_null.reset_index()
+
+        r2_pvalues = pd.DataFrame(r2_obs.set_index(["Group", "View", "Factor"]).loc[:,["R2"]]\
+            .join(r2_df.set_index(["Group", "View", "Factor"]), rsuffix="_null")\
+            .groupby(["Group", "View", "Factor"])\
+            .apply(lambda x: np.mean(x["R2"] <= x["R2_null"])))
+        r2_pvalues.columns = ["PValue"]
+
+        return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
+
+    def get_r2_null(
         self,
-        groups_df: pd.DataFrame,
         factors: Union[int, List[int], str, List[str]] = None,
+        n_iter: int = 100, 
+        groups_df: Optional[pd.DataFrame] = None,
+        return_full=False, 
+        return_pvalues=True
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2_custom_groups(fi, groups_df))
+            r2 = r2.append(self.get_factor_r2_null(fi, groups_df=groups_df, n_iter=n_iter, return_full=return_full, return_pvalues=return_pvalues))
         return r2
+

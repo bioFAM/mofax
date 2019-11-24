@@ -447,33 +447,76 @@ def plot_r2(
     return g
 
 
-def plot_r2_custom_groups(
+def plot_r2(
     model: mofa_model,
-    groups_df: pd.DataFrame,
     factors: Union[int, List[int], str, List[str]] = None,
+    groups_df: pd.DataFrame = None,
     view=0,
     **kwargs,
 ):
     """
-    Plot R2 values for the model (draft)
+    Plot R2 values for the model
 
     Parameters
     ----------
     model : mofa_model
         Factor model
-    groups_df : pd.DataFrame
-        Data frame with cells as index and first column as group assignment
     factors : optional
         Index of a factor (or indices of factors) to use (all factors by default)
     view : optional
         Make a plot for a cetrain view (first view by default)
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
     """
-    r2 = model.get_r2_custom_groups(factors=factors, groups_df=groups_df)
+    r2 = model.get_r2(factors=factors, groups_df=groups_df)
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
+
+    # Sort by factor index
+    r2_df.index = r2_df.index.astype("category")
+    r2_df.index = r2_df.index.reorder_categories(
+        sorted(r2_df.index.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
+    r2_df = r2_df.sort_values("Factor")
+
+    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
+
+    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
+
+    return g
+
+
+def plot_r2_pvalues(
+    model: mofa_model,
+    factors: Union[int, List[int], str, List[str]] = None,
+    n_iter: int = 100,
+    groups_df: pd.DataFrame = None,
+    view=0,
+    **kwargs,
+):
+    """
+    Plot R2 values for the model
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    view : optional
+        Make a plot for a cetrain view (first view by default)
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    """
+    r2 = model.get_r2_null(factors=factors, groups_df=groups_df, n_iter=n_iter, return_pvalues=True)
+    # Select a certain view if necessary
+    if view is not None:
+        view = model.views[view] if isinstance(view, int) else view
+        r2 = r2[r2["View"] == view]
+    r2_df = r2.sort_values("PValue").pivot(index="Factor", columns="Group", values="PValue")
 
     # Sort by factor index
     r2_df.index = r2_df.index.astype("category")
