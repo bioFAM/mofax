@@ -292,7 +292,7 @@ def plot_weights_dotplot(
     g = sns.FacetGrid(wm, col="factor", col_wrap=col_wrap)
 
     # Draw a dot plot using the stripplot function
-    g.map(sns.stripplot, "value", "feature", "value", size=10, orient="h",
+    g.map(sns.stripplot, "value", "feature", "value_abs", size=10, orient="h",
           palette="ch:s=1,r=-.1", linewidth=1, edgecolor="w")
 
     # Use the same x axis limits on all columns and add better labels
