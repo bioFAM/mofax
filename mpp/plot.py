@@ -1,6 +1,6 @@
 from .core import mofa_model
 
-from typing import Union, List
+from typing import Union, Optional, List
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -232,8 +232,8 @@ def plot_weights_dotplot(
     w_threshold: float = None,
     w_abs: bool = False,
     col_wrap: Optional[int] = 4,
-    yticklabels_size: int = 10
-    **kwargs,
+    yticklabels_size: int = 10,
+    **kwargs
 ):
     """
     Plot loadings for top features as a dotplot
