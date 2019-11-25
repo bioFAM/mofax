@@ -225,6 +225,97 @@ def plot_weights_heatmap(
     return cg
 
 
+def plot_weights_dotplot(
+    model: mofa_model,
+    factors: Union[int, List[int]] = None,
+    n_features: int = None,
+    w_threshold: float = None,
+    w_abs: bool = False,
+    col_wrap: Optional[int] = 4,
+    yticklabels_size: int = 10
+    **kwargs,
+):
+    """
+    Plot loadings for top features as a dotplot
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Factors to use (all factors in the model by default)
+    n_features : optional
+        Number of features for each factor by their absolute value (10 by default)
+    w_threshold : optional
+        Absolute loading threshold for a feature to plot (no threshold by default)
+    w_abs : optional
+        If plot absolute loadings values
+    col_wrap : optional
+        Number of columns per row when plotting multiple factors
+    yticklabels_size : optional
+        Font size for features labels (default is 10)
+    """
+
+    # Set defaults
+    n_features_default = 10
+    if factors is None:
+        factors = list(range(model.nfactors))
+
+    # Fetch weights for the relevant factors
+    w = (
+        model.get_weights(factors=factors, df=True, absolute_values=w_abs)
+        .rename_axis("feature")
+        .reset_index()
+    )
+    wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
+    wm = wm.assign(value_abs=lambda x: x.value.abs())
+    wm["factor"] = wm["factor"].astype("category")
+
+    if n_features is None and w_threshold is not None:
+        features = wm[wm.value_abs >= w_threshold].feature.unique()
+    else:
+        if n_features is None:
+            n_features = n_features_default
+        # Get a subset of features
+        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        if w_threshold is None:
+            features = wm.head(n_features).feature.unique()
+        else:
+            features = wm[wm.value_abs >= w_threshold].head(n_features).feature.unique()
+
+    wm = wm.apply(lambda x: x.reset_index(drop=True))
+    wm = wm[wm.feature.isin(features)]
+
+    sns.set(style="whitegrid")
+
+    # Make the PairGrid
+    g = sns.FacetGrid(wm.sort_values("value", ascending=False), col="factor", col_wrap=col_wrap)
+
+    # Draw a dot plot using the stripplot function
+    g.map(sns.stripplot, "value", "feature", size=10, orient="h",
+          palette="ch:s=1,r=-.1,h=1_r", linewidth=1, edgecolor="w")
+
+    # Use the same x axis limits on all columns and add better labels
+    g.set(xlabel="Loadings", ylabel="")
+
+    # Use semantically meaningful titles for the columns
+    titles = [f"Factor{i+1}" for i in factors]
+
+    for ax, title in zip(g.axes.flat, titles):
+
+        # Set a different title for each axes
+        ax.set(title=title)
+
+        # Make the grid horizontal instead of vertical
+        ax.xaxis.grid(False)
+        ax.yaxis.grid(True)
+        ax.set_yticklabels(ax.yaxis.get_ticklabels(), size=yticklabels_size)
+
+    sns.despine(left=True, bottom=True, offset=10, trim=True)
+
+    return g
+
+
 def plot_weights_scatter(
     model: mofa_model,
     x="Factor1",
