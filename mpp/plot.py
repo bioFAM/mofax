@@ -277,11 +277,11 @@ def plot_weights_dotplot(
         if n_features is None:
             n_features = n_features_default
         # Get a subset of features
-        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        wmf = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
         if w_threshold is None:
-            features = wm.head(n_features).feature.unique()
+            features = wmf.head(n_features).feature.unique()
         else:
-            features = wm[wm.value_abs >= w_threshold].head(n_features).feature.unique()
+            features = wmf[wmf.value_abs >= w_threshold].head(n_features).feature.unique()
 
     wm = wm.apply(lambda x: x.reset_index(drop=True))
     wm = wm[wm.feature.isin(features)]
