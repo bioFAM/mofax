@@ -131,6 +131,88 @@ def plot_weights(
     return plot
 
 
+def plot_weights_scaled(
+    model: mofa_model,
+    x="Factor1",
+    y="Factor2",
+    view=0,
+    n_features: int = 10,
+    w_scaled: bool = True,
+    label_size=5,
+    y_repel_coef=0.05,
+    attract_to_points=True,
+    **kwargs,
+):
+    """
+    Plot scaled loadings for 2 factors
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factor : optional
+        Factor to use (default is Factor1)
+    view : options
+        The view to get the loadings of the factor for (first view by default)
+    n_features : optional
+        Number of features to label with most positive and most negative loadings
+    label_size : optional
+        Font size of feature labels (default is 5)
+    y_repel_coef : optional
+        Parameter to repel feature labels along the y axis (0.03 by default)
+    attract_to_points : optional
+        If place labels according to the Y coordinate of the point (False by default)
+    """
+    w = model.get_weights(views=view, factors=[x,y], df=True)
+    w.columns = ["x", "y"]
+
+    if w_scaled:
+        w.x = w.x / abs(w.loc[abs(w.x).idxmax()].x)
+        w.y = w.y / abs(w.loc[abs(w.y).idxmax()].y)
+
+    wm = w.rename_axis("feature").reset_index()\
+            .melt(var_name="factor", id_vars=["feature"])\
+            .assign(value_abs = lambda x: np.abs(x.value),
+                    value_sign =lambda x: np.sign(x.value))\
+            .sort_values("value_abs", ascending=False)\
+            .head(n_features)\
+            .sort_values(["factor", "value_sign"], ascending=True)\
+            .drop_duplicates("feature")
+
+    top_features = wm.sort_values("factor", ascending=True).feature.values
+
+    # Construct the plot
+    ax = sns.scatterplot("x", "y", data=w, linewidth=0, color="#CCCCCC", **kwargs)
+    ax.set_xlim(-1.5,1.5)
+    ax.set_ylim(-1.5,1.5)
+    ax.set_aspect(1)
+    for factor in wm.factor.unique():
+        for sign in wm[wm.factor==factor].value_sign.unique():
+            feature_set = wm[(wm.factor==factor) & (wm.value_sign==sign)].feature.values
+            w_set = w.loc[feature_set].sort_values("y", ascending=False)
+            y_start_pos = w_set.y.max()
+            y_prev = y_start_pos
+            for i, row in enumerate(w_set.iterrows()):
+                name, point = row
+                y_loc = y_prev - y_repel_coef if i != 0 else y_start_pos
+                y_loc = min(point.y, y_loc) if attract_to_points else y_loc
+                y_prev = y_loc
+                ax.text(point.x, y_loc, str(name), size=label_size)
+                ax.plot([0, point.x], [0, point.y], linewidth=.5, color="#333333")
+    
+    sns.despine(offset=10, trim=True)
+    plt.xticks(np.arange(-1, 2., step=1.))
+    plt.yticks(np.arange(-1, 2., step=1.))
+    
+
+    # Set plot axes labels
+    x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
+    y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
+    ax.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+
+    return ax
+
+
 def plot_weights_heatmap(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
