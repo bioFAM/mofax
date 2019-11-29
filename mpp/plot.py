@@ -131,7 +131,7 @@ def plot_weights(
 
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
-    ax.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
+    ax.set(ylabel=f"{factor_label} loading", xlabel="Feature rank")
 
     return ax
 
@@ -209,11 +209,10 @@ def plot_weights_scaled(
     ax.set_xticks(np.arange(-1, 2., step=1.))
     ax.set_yticks(np.arange(-1, 2., step=1.))
     
-
     # Set plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
-    ax.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+    ax.set(xlabel=f"{x_factor_label} loading", ylabel=f"{y_factor_label} loading")
 
     return ax
 
@@ -500,8 +499,15 @@ def plot_factors(
         Linewidth argument for dots (default is 0)
     size : optional
         Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
+    legend : optional bool
+        If to show the legend (e.g. colours matching groups)
+    legend_loc : optional
+        Legend location (e.g. 'upper left', 'center', or 'best')
+    legend_prop : optional
+        The font properties of the legend
     """
     z = model.get_factors(factors=[x, y], df=True)
+    z.columns = ["x", "y"]
 
     # Assign a group to every cell if it is provided
     if groups_df is not None:
@@ -509,28 +515,34 @@ def plot_factors(
         z = z.set_index("cell").join(groups_df).reset_index()
         grouping_var = groups_df.columns[0]
 
+    # Define plot axes labels
+    x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
+    y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
+
     if hist or kde:
         if groups_df is not None:
             # Construct a custom joint plot
             # in order to colour cells
-            g = sns.JointGrid(x, y, z)
+            g = sns.JointGrid(x="x", y="y", data=z)
             group_labels = []
             for group, group_cells in z.groupby(grouping_var):
                 sns.distplot(group_cells[x], ax=g.ax_marg_x, kde=kde, hist=hist)
                 sns.distplot(
-                    group_cells[y], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
+                    group_cells["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
                 )
-                g.ax_joint.plot(group_cells[x], group_cells[y], "o", ms=size, **kwargs)
+                g.ax_joint.plot(group_cells["x"], group_cells["y"], "o", ms=size, **kwargs)
                 group_labels.append(group)
             if legend:
                 legend = g.ax_joint.legend(labels=group_labels, loc=legend_loc, prop=legend_prop)
         else:
-            g = sns.jointplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
+            g = sns.jointplot(x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs)
+        sns.despine(offset=10, trim=True, ax=g.ax_joint)
+        g.ax_joint.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
     else:
         if groups_df is not None:
             g = sns.scatterplot(
-                x=x,
-                y=y,
+                x="x",
+                y="y",
                 data=z,
                 linewidth=linewidth,
                 s=size,
@@ -538,8 +550,9 @@ def plot_factors(
                 **kwargs,
             )
         else:
-            g = sns.scatterplot(x=x, y=y, data=z, linewidth=linewidth, s=size, **kwargs)
-    sns.despine(offset=10, trim=True)
+            g = sns.scatterplot("x", "y", data=z, linewidth=linewidth, s=size, **kwargs)
+        sns.despine(offset=10, trim=True, ax=g)
+        g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
     return g
 
