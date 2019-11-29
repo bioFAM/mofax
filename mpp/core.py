@@ -303,7 +303,7 @@ class mofa_model:
 
 
     def get_factor_r2_null(self, factor_index: int, groups_df: Optional[pd.DataFrame], n_iter=100, 
-                           return_full=False, return_true=False, return_pvalues=True) -> pd.DataFrame:
+                           return_full=False, return_true=False, return_pvalues=True, fdr=True) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
         if groups_df is None:
@@ -371,7 +371,12 @@ class mofa_model:
             .apply(lambda x: np.mean(x["R2"] <= x["R2_null"])))
         r2_pvalues.columns = ["PValue"]
 
-        return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
+        if fdr:
+            r2_pvalues.groupby(["Factor", "Group"]).ngroups
+            r2_pvalues["FDR"] = padjust_fdr(r2_pvalues.PValue)
+            return r2_pvalues
+        else:
+            return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
 
     def get_r2_null(
         self,
@@ -379,11 +384,23 @@ class mofa_model:
         n_iter: int = 100, 
         groups_df: Optional[pd.DataFrame] = None,
         return_full=False, 
-        return_pvalues=True
+        return_pvalues=True,
+        fdr=True
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2_null(fi, groups_df=groups_df, n_iter=n_iter, return_full=return_full, return_pvalues=return_pvalues))
+            r2 = r2.append(self.get_factor_r2_null(fi, groups_df=groups_df, n_iter=n_iter, return_full=return_full, return_pvalues=return_pvalues, fdr=fdr))
         return r2
 
+
+# Utility functions
+def padjust_fdr(xs):
+    """
+    Adjust p-values using the BH procedure
+    """
+    from scipy.stats import rankdata
+    ranked_p_values = rankdata(xs)
+    fdr = xs * len(xs) / ranked_p_values
+    fdr[fdr > 1] = 1
+    return fdr

@@ -695,6 +695,7 @@ def plot_r2_pvalues(
     n_iter: int = 100,
     groups_df: pd.DataFrame = None,
     view=0,
+    fdr: bool = True,
     **kwargs,
 ):
     """
@@ -710,13 +711,16 @@ def plot_r2_pvalues(
         Make a plot for a cetrain view (first view by default)
     groups_df : optional pd.DataFrame
         Data frame with cells as index and first column as group assignment
+    fdr : optional bool
+        If plot corrected PValues (FDR)
     """
-    r2 = model.get_r2_null(factors=factors, groups_df=groups_df, n_iter=n_iter, return_pvalues=True)
+    r2 = model.get_r2_null(factors=factors, groups_df=groups_df, n_iter=n_iter, return_pvalues=True, fdr=fdr)
+    pvalue_column = "FDR" if fdr else "PValue"
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
-    r2_df = r2.sort_values("PValue").pivot(index="Factor", columns="Group", values="PValue")
+    r2_df = r2.sort_values("PValue").pivot(index="Factor", columns="Group", values=pvalue_column)
 
     # Sort by factor index
     r2_df.index = r2_df.index.astype("category")
