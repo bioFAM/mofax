@@ -60,12 +60,15 @@ def plot_weights(
     w["abs_rank"] = w.groupby("factor")["abs_value"].rank(ascending=False)
     w = w.sort_values(["factor", "abs_rank"], ascending=True)
 
+    # Set default colour to black if none set
+    if 'c' not in kwargs and 'color' not in kwargs:
+        kwargs["color"] = "black"
+
     # Construct the plot
     ax = sns.lineplot(
         x="rank",
         y="value",
         data=w,
-        c="black",
         markers=True,
         dashes=False,
         linewidth=0.5,
