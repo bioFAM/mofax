@@ -290,7 +290,7 @@ def plot_weights_heatmap(
     w = w[w.feature.isin(features)].set_index("feature").T
 
     col_colors = (
-        list(features_col.loc[features, :].iloc[:, 0])
+        features_col.loc[features, :]
         if features_col is not None
         else None
     )
