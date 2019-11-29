@@ -303,7 +303,7 @@ class mofa_model:
 
 
     def get_factor_r2_null(self, factor_index: int, groups_df: Optional[pd.DataFrame], n_iter=100, 
-                           return_full=False, return_pvalues=True) -> pd.DataFrame:
+                           return_full=False, return_true=False, return_pvalues=True) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
         if groups_df is None:
@@ -352,11 +352,14 @@ class mofa_model:
                         ignore_index=True,
                     )
 
+        if return_full:
+            if return_true:
+                return r2_df
+            else:
+                return r2_df[r2_df.Iteration != 0].reset_index(drop=True)
+
         r2_obs = r2_df[r2_df.Iteration == 0]
         r2_df = r2_df[r2_df.Iteration != 0]
-
-        if return_full:
-            return r2_df
         
         if not return_pvalues:
             r2_null = r2_df.groupby(["Factor", "Group", "View"]).agg({"R2": ["mean", "std"]})
