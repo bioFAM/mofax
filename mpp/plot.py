@@ -696,6 +696,7 @@ def plot_r2_pvalues(
     groups_df: pd.DataFrame = None,
     view=0,
     fdr: bool = True,
+    cmap="binary_r",
     **kwargs,
 ):
     """
@@ -713,6 +714,8 @@ def plot_r2_pvalues(
         Data frame with cells as index and first column as group assignment
     fdr : optional bool
         If plot corrected PValues (FDR)
+    cmap : optional
+        The colourmap for the heatmap (default is 'binary_r' with darker colour for smaller PValues)
     """
     r2 = model.get_r2_null(factors=factors, groups_df=groups_df, n_iter=n_iter, return_pvalues=True, fdr=fdr)
     pvalue_column = "FDR" if fdr else "PValue"
@@ -729,7 +732,7 @@ def plot_r2_pvalues(
     )
     r2_df = r2_df.sort_values("Factor")
 
-    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
+    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), cmap=cmap, **kwargs)
 
     plt.setp(g.yaxis.get_ticklabels(), rotation=0)
 
