@@ -61,7 +61,7 @@ def plot_weights(
     w = w.sort_values(["factor", "abs_rank"], ascending=True)
 
     # Construct the plot
-    plot = sns.lineplot(
+    ax = sns.lineplot(
         x="rank",
         y="value",
         data=w,
@@ -69,6 +69,7 @@ def plot_weights(
         markers=True,
         dashes=False,
         linewidth=0.5,
+        **kwargs
     )
     sns.despine(offset=10, trim=True)
 
@@ -80,6 +81,7 @@ def plot_weights(
         linewidth=0.2,
         s=25,
         alpha=0.75,
+        **kwargs
     )
 
     # Label top loadings
@@ -93,7 +95,7 @@ def plot_weights(
     ):
         y_loc = y_prev - y_repel_coef if i != 0 else y_start_pos
         y_loc = min(point["value"], y_loc) if attract_to_points else y_loc
-        plot.text(
+        ax.text(
             x_rank_offset,
             y_loc,
             point["feature"],
@@ -113,7 +115,7 @@ def plot_weights(
     ):
         y_loc = y_prev + y_repel_coef if i != 0 else y_start_neg
         y_loc = max(point["value"], y_loc) if attract_to_points else y_loc
-        plot.text(
+        ax.text(
             w.shape[0] - x_rank_offset_neg,
             y_loc,
             point["feature"],
@@ -126,9 +128,9 @@ def plot_weights(
 
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
-    plot.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
+    ax.set(ylabel=f"{factor_label} value", xlabel="Feature rank")
 
-    return plot
+    return ax
 
 
 def plot_weights_scaled(
@@ -201,8 +203,8 @@ def plot_weights_scaled(
                 ax.plot([0, point.x], [0, point.y], linewidth=.5, color="#333333")
     
     sns.despine(offset=10, trim=True)
-    plt.xticks(np.arange(-1, 2., step=1.))
-    plt.yticks(np.arange(-1, 2., step=1.))
+    ax.set_xticks(np.arange(-1, 2., step=1.))
+    ax.set_yticks(np.arange(-1, 2., step=1.))
     
 
     # Set plot axes labels
