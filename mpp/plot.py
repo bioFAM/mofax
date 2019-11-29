@@ -205,7 +205,7 @@ def plot_weights_scaled(
                 ax.text(point.x, y_loc, str(name), size=label_size)
                 ax.plot([0, point.x], [0, point.y], linewidth=.5, color="#333333")
     
-    sns.despine(offset=10, trim=True)
+    sns.despine(offset=10, trim=True, ax=ax)
     ax.set_xticks(np.arange(-1, 2., step=1.))
     ax.set_yticks(np.arange(-1, 2., step=1.))
     
