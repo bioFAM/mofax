@@ -436,6 +436,10 @@ def plot_weights_scatter(
     wm = wm.assign(value_abs=lambda x: x.value.abs())
     wm["factor"] = wm["factor"].astype("category")
 
+    # Set default colour to darkgrey if none set
+    if 'c' not in kwargs and 'color' not in kwargs:
+        kwargs["color"] = "darkgrey"
+
     sns_plot = sns.jointplot if hist else sns.scatterplot
     plot = sns_plot(x=x, y=y, data=w, **kwargs)
     sns.despine(offset=10, trim=True)
@@ -518,6 +522,10 @@ def plot_factors(
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
+
+    # Set default colour to black if none set
+    if 'c' not in kwargs and 'color' not in kwargs:
+        kwargs["color"] = "black"
 
     if hist or kde:
         if groups_df is not None:
