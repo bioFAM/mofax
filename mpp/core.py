@@ -372,9 +372,8 @@ class mofa_model:
         r2_pvalues.columns = ["PValue"]
 
         if fdr:
-            r2_pvalues.groupby(["Factor", "Group"]).ngroups
             r2_pvalues["FDR"] = padjust_fdr(r2_pvalues.PValue)
-            return r2_pvalues
+            return r2_pvalues.reset_index().sort_values("FDR", ascending=True)
         else:
             return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
 
