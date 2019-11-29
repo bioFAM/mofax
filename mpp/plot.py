@@ -526,7 +526,7 @@ def plot_factors(
             g = sns.JointGrid(x="x", y="y", data=z)
             group_labels = []
             for group, group_cells in z.groupby(grouping_var):
-                sns.distplot(group_cells[x], ax=g.ax_marg_x, kde=kde, hist=hist)
+                sns.distplot(group_cells["x"], ax=g.ax_marg_x, kde=kde, hist=hist)
                 sns.distplot(
                     group_cells["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
                 )
@@ -550,7 +550,7 @@ def plot_factors(
                 **kwargs,
             )
         else:
-            g = sns.scatterplot("x", "y", data=z, linewidth=linewidth, s=size, **kwargs)
+            g = sns.scatterplot(x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs)
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
