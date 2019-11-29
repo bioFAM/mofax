@@ -74,7 +74,7 @@ def plot_weights(
         linewidth=0.5,
         **kwargs
     )
-    sns.despine(offset=10, trim=True)
+    sns.despine(offset=10, trim=True, ax=ax)
 
     # Plot top features as dots
     sns.scatterplot(
