@@ -737,3 +737,54 @@ def plot_r2_pvalues(
     plt.setp(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
+
+
+def plot_r2_barplot(
+    model: mofa_model,
+    factors: Union[int, List[int], str, List[str]] = None,
+    view=0,
+    groups_df: pd.DataFrame = None,
+    x="Factor",
+    y="R2",
+    groupby="Group",
+    **kwargs,
+):
+    """
+    Plot R2 values for the model
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    view : optional
+        Make a plot for a cetrain view (first view by default)
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    x : optional
+        Value to plot along the x axis (default is Factor)
+    y : optional
+        Value to plot along the y axis (default is R2)
+    groupby : optional
+        Column to group bars for R2 values by (default is Group)
+    """
+    r2 = model.get_r2(factors=factors, groups_df=groups_df)
+    # Select a certain view if necessary
+    if view is not None:
+        view = model.views[view] if isinstance(view, int) else view
+        r2 = r2[r2["View"] == view]
+    r2_df = r2.sort_values("R2")
+
+    # Sort by factor index
+    r2_df.Factor = r2_df.Factor.astype("category")
+    r2_df.Factor = r2_df.Factor.cat.reorder_categories(
+        sorted(r2_df.Factor.cat.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
+    r2_df = r2_df.sort_values("Factor")
+    
+    g = sns.barplot(data=r2_df.sort_index(level=0, ascending=False), 
+                    x=x, y=y, hue=groupby,
+                    **kwargs)
+
+    return g
