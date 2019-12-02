@@ -226,7 +226,9 @@ class mofa_model:
 
         return (findices, factors)
 
-    def get_factor_r2(self, factor_index: int, groups_df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+    def get_factor_r2(
+        self, factor_index: int, groups_df: Optional[pd.DataFrame] = None
+    ) -> pd.DataFrame:
         r2_df = pd.DataFrame()
         if groups_df is None:
             for view in self.views:
@@ -248,7 +250,7 @@ class mofa_model:
                     )
 
         # When calculating for a custom set of groups,
-        # Z matrix has to be merged and then split 
+        # Z matrix has to be merged and then split
         # according to the new grouping of cells
         else:
             custom_groups = groups_df.iloc[:, 0].unique()
@@ -270,7 +272,9 @@ class mofa_model:
 
                 data_view = dict()
                 for group in custom_groups:
-                    data_view[group] = y_view[np.where(groups_df.iloc[:, 0] == group)[0], :]
+                    data_view[group] = y_view[
+                        np.where(groups_df.iloc[:, 0] == group)[0], :
+                    ]
 
                 for group in custom_groups:
                     crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
@@ -301,24 +305,31 @@ class mofa_model:
             r2 = r2.append(self.get_factor_r2(fi, groups_df=groups_df))
         return r2
 
-
-    def get_factor_r2_null(self, factor_index: int, groups_df: Optional[pd.DataFrame], n_iter=100, 
-                           return_full=False, return_true=False, return_pvalues=True, fdr=True) -> pd.DataFrame:
+    def get_factor_r2_null(
+        self,
+        factor_index: int,
+        groups_df: Optional[pd.DataFrame],
+        n_iter=100,
+        return_full=False,
+        return_true=False,
+        return_pvalues=True,
+        fdr=True,
+    ) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
         if groups_df is None:
             groups_df = self.get_cells().set_index("cell")
 
-        custom_groups = groups_df.iloc[:,0].unique()
+        custom_groups = groups_df.iloc[:, 0].unique()
 
         z = np.concatenate(
             [self.expectations["Z"][group][:, :] for group in self.groups], axis=1
         )
 
-        for i in range(n_iter+1):
+        for i in range(n_iter + 1):
             # Canculate true group assignment for iteration 0
             if i > 0:
-                groups_df.iloc[:,0] = groups_df.iloc[:,0].sample(frac=1).values
+                groups_df.iloc[:, 0] = groups_df.iloc[:, 0].sample(frac=1).values
 
             z_custom = dict()
             for group in custom_groups:
@@ -332,7 +343,9 @@ class mofa_model:
 
                 data_view = dict()
                 for group in custom_groups:
-                    data_view[group] = y_view[np.where(groups_df.iloc[:, 0] == group)[0], :]
+                    data_view[group] = y_view[
+                        np.where(groups_df.iloc[:, 0] == group)[0], :
+                    ]
 
                 for group in custom_groups:
                     crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
@@ -347,7 +360,7 @@ class mofa_model:
                             "Group": group,
                             "Factor": f"Factor{factor_index+1}",
                             "R2": 1 - a / b,
-                            "Iteration": i
+                            "Iteration": i,
                         },
                         ignore_index=True,
                     )
@@ -360,15 +373,20 @@ class mofa_model:
 
         r2_obs = r2_df[r2_df.Iteration == 0]
         r2_df = r2_df[r2_df.Iteration != 0]
-        
+
         if not return_pvalues:
-            r2_null = r2_df.groupby(["Factor", "Group", "View"]).agg({"R2": ["mean", "std"]})
+            r2_null = r2_df.groupby(["Factor", "Group", "View"]).agg(
+                {"R2": ["mean", "std"]}
+            )
             return r2_null.reset_index()
 
-        r2_pvalues = pd.DataFrame(r2_obs.set_index(["Group", "View", "Factor"]).loc[:,["R2"]]\
-            .join(r2_df.set_index(["Group", "View", "Factor"]), rsuffix="_null")\
-            .groupby(["Group", "View", "Factor"])\
-            .apply(lambda x: np.mean(x["R2"] <= x["R2_null"])))
+        r2_pvalues = pd.DataFrame(
+            r2_obs.set_index(["Group", "View", "Factor"])
+            .loc[:, ["R2"]]
+            .join(r2_df.set_index(["Group", "View", "Factor"]), rsuffix="_null")
+            .groupby(["Group", "View", "Factor"])
+            .apply(lambda x: np.mean(x["R2"] <= x["R2_null"]))
+        )
         r2_pvalues.columns = ["PValue"]
 
         if fdr:
@@ -380,16 +398,25 @@ class mofa_model:
     def get_r2_null(
         self,
         factors: Union[int, List[int], str, List[str]] = None,
-        n_iter: int = 100, 
+        n_iter: int = 100,
         groups_df: Optional[pd.DataFrame] = None,
-        return_full=False, 
+        return_full=False,
         return_pvalues=True,
-        fdr=True
+        fdr=True,
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2_null(fi, groups_df=groups_df, n_iter=n_iter, return_full=return_full, return_pvalues=return_pvalues, fdr=fdr))
+            r2 = r2.append(
+                self.get_factor_r2_null(
+                    fi,
+                    groups_df=groups_df,
+                    n_iter=n_iter,
+                    return_full=return_full,
+                    return_pvalues=return_pvalues,
+                    fdr=fdr,
+                )
+            )
         return r2
 
 
@@ -399,6 +426,7 @@ def padjust_fdr(xs):
     Adjust p-values using the BH procedure
     """
     from scipy.stats import rankdata
+
     ranked_p_values = rankdata(xs)
     fdr = xs * len(xs) / ranked_p_values
     fdr[fdr > 1] = 1
