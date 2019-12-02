@@ -659,7 +659,7 @@ def plot_factors_matrixplot(
 
     z = (
         z.groupby(["group", "factor"])
-        .agg({"value": "var"})
+        .agg({"value": agg})
         .reset_index()
         .pivot(index="factor", columns="group", values="value")
     )
