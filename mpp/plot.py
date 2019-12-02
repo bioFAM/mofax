@@ -61,18 +61,12 @@ def plot_weights(
     w = w.sort_values(["factor", "abs_rank"], ascending=True)
 
     # Set default colour to black if none set
-    if 'c' not in kwargs and 'color' not in kwargs:
+    if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
     # Construct the plot
     ax = sns.lineplot(
-        x="rank",
-        y="value",
-        data=w,
-        markers=True,
-        dashes=False,
-        linewidth=0.5,
-        **kwargs
+        x="rank", y="value", data=w, markers=True, dashes=False, linewidth=0.5, **kwargs
     )
     sns.despine(offset=10, trim=True, ax=ax)
 
@@ -84,14 +78,14 @@ def plot_weights(
         linewidth=0.2,
         s=25,
         alpha=0.75,
-        **kwargs
+        **kwargs,
     )
 
     # Label top loadings
 
     # Positive weights
     y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
-    
+
     y_prev = y_start_pos
     for i, point in (
         w[(w["abs_rank"] < n_features) & (w["value"] >= 0)].reset_index().iterrows()
@@ -168,32 +162,38 @@ def plot_weights_scaled(
     attract_to_points : optional
         If place labels according to the Y coordinate of the point (False by default)
     """
-    w = model.get_weights(views=view, factors=[x,y], df=True)
+    w = model.get_weights(views=view, factors=[x, y], df=True)
     w.columns = ["x", "y"]
 
     if w_scaled:
         w.x = w.x / abs(w.loc[abs(w.x).idxmax()].x)
         w.y = w.y / abs(w.loc[abs(w.y).idxmax()].y)
 
-    wm = w.rename_axis("feature").reset_index()\
-            .melt(var_name="factor", id_vars=["feature"])\
-            .assign(value_abs = lambda x: np.abs(x.value),
-                    value_sign =lambda x: np.sign(x.value))\
-            .sort_values("value_abs", ascending=False)\
-            .head(n_features)\
-            .sort_values(["factor", "value_sign"], ascending=True)\
-            .drop_duplicates("feature")
+    wm = (
+        w.rename_axis("feature")
+        .reset_index()
+        .melt(var_name="factor", id_vars=["feature"])
+        .assign(
+            value_abs=lambda x: np.abs(x.value), value_sign=lambda x: np.sign(x.value)
+        )
+        .sort_values("value_abs", ascending=False)
+        .head(n_features)
+        .sort_values(["factor", "value_sign"], ascending=True)
+        .drop_duplicates("feature")
+    )
 
     top_features = wm.sort_values("factor", ascending=True).feature.values
 
     # Construct the plot
     ax = sns.scatterplot("x", "y", data=w, linewidth=0, color="#CCCCCC", **kwargs)
-    ax.set_xlim(-1.5,1.5)
-    ax.set_ylim(-1.5,1.5)
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
     ax.set_aspect(1)
     for factor in wm.factor.unique():
-        for sign in wm[wm.factor==factor].value_sign.unique():
-            feature_set = wm[(wm.factor==factor) & (wm.value_sign==sign)].feature.values
+        for sign in wm[wm.factor == factor].value_sign.unique():
+            feature_set = wm[
+                (wm.factor == factor) & (wm.value_sign == sign)
+            ].feature.values
             w_set = w.loc[feature_set].sort_values("y", ascending=False)
             y_start_pos = w_set.y.max()
             y_prev = y_start_pos
@@ -203,12 +203,12 @@ def plot_weights_scaled(
                 y_loc = min(point.y, y_loc) if attract_to_points else y_loc
                 y_prev = y_loc
                 ax.text(point.x, y_loc, str(name), size=label_size)
-                ax.plot([0, point.x], [0, point.y], linewidth=.5, color="#333333")
-    
+                ax.plot([0, point.x], [0, point.y], linewidth=0.5, color="#333333")
+
     sns.despine(offset=10, trim=True, ax=ax)
-    ax.set_xticks(np.arange(-1, 2., step=1.))
-    ax.set_yticks(np.arange(-1, 2., step=1.))
-    
+    ax.set_xticks(np.arange(-1, 2.0, step=1.0))
+    ax.set_yticks(np.arange(-1, 2.0, step=1.0))
+
     # Set plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
@@ -289,11 +289,7 @@ def plot_weights_heatmap(
 
     w = w[w.feature.isin(features)].set_index("feature").T
 
-    col_colors = (
-        features_col.loc[features, :]
-        if features_col is not None
-        else None
-    )
+    col_colors = features_col.loc[features, :] if features_col is not None else None
 
     cg = sns.clustermap(
         w,
@@ -319,7 +315,7 @@ def plot_weights_dotplot(
     w_abs: bool = False,
     col_wrap: Optional[int] = 4,
     yticklabels_size: int = 10,
-    **kwargs
+    **kwargs,
 ):
     """
     Plot loadings for top features as a dotplot
@@ -367,7 +363,9 @@ def plot_weights_dotplot(
         if w_threshold is None:
             features = wmf.head(n_features).feature.unique()
         else:
-            features = wmf[wmf.value_abs >= w_threshold].head(n_features).feature.unique()
+            features = (
+                wmf[wmf.value_abs >= w_threshold].head(n_features).feature.unique()
+            )
 
     wm = wm.apply(lambda x: x.reset_index(drop=True))
     wm = wm[wm.feature.isin(features)]
@@ -378,9 +376,18 @@ def plot_weights_dotplot(
     g = sns.FacetGrid(wm, col="factor", col_wrap=col_wrap)
 
     # Draw a dot plot using the stripplot function
-    g.map(sns.stripplot, "value", "feature", "value_abs", size=10, orient="h",
-          order=features,
-          palette="ch:s=1,r=-.1", linewidth=1, edgecolor="w")
+    g.map(
+        sns.stripplot,
+        "value",
+        "feature",
+        "value_abs",
+        size=10,
+        orient="h",
+        order=features,
+        palette="ch:s=1,r=-.1",
+        linewidth=1,
+        edgecolor="w",
+    )
 
     # Use the same x axis limits on all columns and add better labels
     g.set(xlabel="Loadings", ylabel="")
@@ -438,7 +445,7 @@ def plot_weights_scatter(
     wm["factor"] = wm["factor"].astype("category")
 
     # Set default colour to darkgrey if none set
-    if 'c' not in kwargs and 'color' not in kwargs:
+    if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "darkgrey"
 
     sns_plot = sns.jointplot if hist else sns.scatterplot
@@ -479,7 +486,7 @@ def plot_factors(
     linewidth=0,
     size=5,
     legend=False,
-    legend_loc='best',
+    legend_loc="best",
     legend_prop=None,
     **kwargs,
 ):
@@ -525,7 +532,7 @@ def plot_factors(
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
 
     # Set default colour to black if none set
-    if 'c' not in kwargs and 'color' not in kwargs:
+    if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
     if hist or kde:
@@ -539,14 +546,22 @@ def plot_factors(
                 sns.distplot(
                     group_cells["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
                 )
-                g.ax_joint.plot(group_cells["x"], group_cells["y"], "o", ms=size, **kwargs)
+                g.ax_joint.plot(
+                    group_cells["x"], group_cells["y"], "o", ms=size, **kwargs
+                )
                 group_labels.append(group)
             if legend:
-                legend = g.ax_joint.legend(labels=group_labels, loc=legend_loc, prop=legend_prop)
+                legend = g.ax_joint.legend(
+                    labels=group_labels, loc=legend_loc, prop=legend_prop
+                )
         else:
-            g = sns.jointplot(x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs)
+            g = sns.jointplot(
+                x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs
+            )
         sns.despine(offset=10, trim=True, ax=g.ax_joint)
-        g.ax_joint.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+        g.ax_joint.set(
+            xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
+        )
     else:
         if groups_df is not None:
             g = sns.scatterplot(
@@ -559,7 +574,9 @@ def plot_factors(
                 **kwargs,
             )
         else:
-            g = sns.scatterplot(x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs)
+            g = sns.scatterplot(
+                x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs
+            )
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
@@ -604,6 +621,57 @@ def plot_factor(
         ax = sns.violinplot(x=x, y=y, hue=hue, data=z, inner=None, color=".9")
     ax = sns.stripplot(x=x, y=y, hue=hue, data=z, dodge=True, **kwargs)
     sns.despine(offset=10, trim=True)
+
+    return ax
+
+
+def plot_factors_matrixplot(
+    model: mofa_model,
+    factors: Optional[Union[int, List[int], str, List[str]]] = None,
+    groups: Optional[Union[int, List[int], str, List[str]]] = None,
+    agg="mean",
+    cmap="viridis",
+    **kwargs,
+):
+    """
+    Average factor value per group and plot it as a heatmap
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Factor idices or names (all factors by default)
+    groups : optional
+        Group indices or names (all groups by default)
+    avg : optional
+        Aggregation function to average factor values per group (mean by default)
+    cmap : optional
+        Heatmap cmap argument ("viridis" by default)
+    """
+
+    z = model.get_factors(factors=factors, groups=groups, df=True)
+    z = z.rename_axis("cell").reset_index()
+    # Make the table long for plotting
+    z = z.melt(id_vars="cell", var_name="factor", value_name="value")
+    # Add group information for cells
+    z = z.set_index("cell").join(model.get_cells().set_index("cell")).reset_index()
+
+    z = (
+        z.groupby(["group", "factor"])
+        .agg({"value": "var"})
+        .reset_index()
+        .pivot(index="factor", columns="group", values="value")
+    )
+
+    z.index = z.index.astype("category")
+    z.index = z.index.reorder_categories(
+        sorted(z.index.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
+    z = z.sort_values("factor", ascending=False)
+
+    ax = sns.heatmap(z, cmap=cmap, **kwargs)
+    ax.set(ylabel="Factor", xlabel="Group")
 
     return ax
 
@@ -717,13 +785,21 @@ def plot_r2_pvalues(
     cmap : optional
         The colourmap for the heatmap (default is 'binary_r' with darker colour for smaller PValues)
     """
-    r2 = model.get_r2_null(factors=factors, groups_df=groups_df, n_iter=n_iter, return_pvalues=True, fdr=fdr)
+    r2 = model.get_r2_null(
+        factors=factors,
+        groups_df=groups_df,
+        n_iter=n_iter,
+        return_pvalues=True,
+        fdr=fdr,
+    )
     pvalue_column = "FDR" if fdr else "PValue"
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
-    r2_df = r2.sort_values("PValue").pivot(index="Factor", columns="Group", values=pvalue_column)
+    r2_df = r2.sort_values("PValue").pivot(
+        index="Factor", columns="Group", values=pvalue_column
+    )
 
     # Sort by factor index
     r2_df.index = r2_df.index.astype("category")
@@ -782,9 +858,9 @@ def plot_r2_barplot(
         sorted(r2_df.Factor.cat.categories, key=lambda x: int(x.split("Factor")[1]))
     )
     r2_df = r2_df.sort_values("Factor")
-    
-    g = sns.barplot(data=r2_df.sort_index(level=0, ascending=False), 
-                    x=x, y=y, hue=groupby,
-                    **kwargs)
+
+    g = sns.barplot(
+        data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, **kwargs
+    )
 
     return g
