@@ -10,6 +10,8 @@ sns.set_style("ticks")
 sns.set_palette("Set2")
 
 
+### WEIGHTS (LOADINGS) ###
+
 def plot_weights(
     model: mofa_model,
     factor="Factor1",
@@ -220,6 +222,7 @@ def plot_weights_scaled(
 def plot_weights_heatmap(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
+    view=0,
     n_features: int = None,
     w_threshold: float = None,
     w_abs: bool = False,
@@ -239,6 +242,8 @@ def plot_weights_heatmap(
         Factor model
     factors : optional
         Factors to use (all factors in the model by default)
+    view : options
+        The view to get the loadings of the factor for (first view by default)
     n_features : optional
         Number of features for each factor by their absolute value (10 by default)
     w_threshold : optional
@@ -267,7 +272,7 @@ def plot_weights_heatmap(
 
     # Fetch weights for the relevant factors
     w = (
-        model.get_weights(factors=factors, df=True, absolute_values=w_abs)
+        model.get_weights(views=view, factors=factors, df=True, absolute_values=w_abs)
         .rename_axis("feature")
         .reset_index()
     )
@@ -310,6 +315,7 @@ def plot_weights_heatmap(
 def plot_weights_dotplot(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
+    view=0,
     n_features: int = None,
     w_threshold: float = None,
     w_abs: bool = False,
@@ -326,6 +332,8 @@ def plot_weights_dotplot(
         Factor model
     factors : optional
         Factors to use (all factors in the model by default)
+    view : options
+        The view to get the loadings of the factor for (first view by default)
     n_features : optional
         Number of features for each factor by their absolute value (10 by default)
     w_threshold : optional
@@ -345,7 +353,7 @@ def plot_weights_dotplot(
 
     # Fetch weights for the relevant factors
     w = (
-        model.get_weights(factors=factors, df=True, absolute_values=w_abs)
+        model.get_weights(views=view, factors=factors, df=True, absolute_values=w_abs)
         .rename_axis("feature")
         .reset_index()
     )
@@ -414,6 +422,7 @@ def plot_weights_scatter(
     model: mofa_model,
     x="Factor1",
     y="Factor2",
+    view=0,
     hist=False,
     n_features: int = 10,
     label_size: int = 5,
@@ -430,6 +439,8 @@ def plot_weights_scatter(
         Factor which loadings to plot along X axis (Factor1 by default)
     y : optional
         Factor which loadings to plot along Y axis (Factor2 by default)
+    view : options
+        The view to get the loadings of the factor for (first view by default)
     hist : optional
         Boolean value if to add marginal histograms to the scatterplot (jointplot)
     n_features : optional
@@ -437,7 +448,7 @@ def plot_weights_scatter(
     label_size : optional
         Font size of feature labels (default is 5)
     """
-    w = model.get_weights(factors=[x, y], df=True).rename_axis("feature").reset_index()
+    w = model.get_weights(views=view, factors=[x, y], df=True).rename_axis("feature").reset_index()
 
     # Get features to label
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
@@ -475,6 +486,8 @@ def plot_weights_scatter(
 
     return plot
 
+
+### FACTOR VALUES ###
 
 def plot_factors(
     model: mofa_model,
@@ -675,6 +688,8 @@ def plot_factors_matrixplot(
 
     return ax
 
+
+### VARIANCE EXPLAINED ###
 
 def plot_r2(
     model: mofa_model,
