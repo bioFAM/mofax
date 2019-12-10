@@ -64,8 +64,7 @@ A few utility functions such as `calculate_factor_r2` to calculate the variance 
 
 A few basic plots can be constructed with plotting functions provided such as `plot_factors` and `plot_weights`. They rely on and limited by plotting functionality of Seaborn.
 
-Examples of similar plots with Bokeh or plotly might be added in future (and pull requests are always welcome).
-
+Please [check the notebooks](notebooks/) for detailed examples.
 
 ## Contributions
 
