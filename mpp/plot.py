@@ -307,7 +307,7 @@ def plot_weights_heatmap(
     )
     sns.despine(offset=10, trim=True)
 
-    plt.setp(cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
+    cg.ax_heatmap.set_xticklabels(cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
 
     return cg
 
@@ -489,7 +489,7 @@ def plot_weights_scatter(
 
 ### FACTOR VALUES ###
 
-def plot_factors(
+def plot_factors_scatter(
     model: mofa_model,
     x="Factor1",
     y="Factor2",
@@ -535,10 +535,13 @@ def plot_factors(
     z.columns = ["x", "y"]
 
     # Assign a group to every cell if it is provided
-    if groups_df is not None:
-        z = z.rename_axis("cell").reset_index()
-        z = z.set_index("cell").join(groups_df).reset_index()
-        grouping_var = groups_df.columns[0]
+    if groups_df is None:
+        groups_df = model.get_cells().set_index("cell")
+
+    z = z.rename_axis("cell").reset_index()
+    z = z.set_index("cell").join(groups_df).reset_index()
+    grouping_var = groups_df.columns[0]
+
 
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
@@ -568,6 +571,7 @@ def plot_factors(
                     labels=group_labels, loc=legend_loc, prop=legend_prop
                 )
         else:
+            # DEPRECATED
             g = sns.jointplot(
                 x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs
             )
@@ -596,7 +600,7 @@ def plot_factors(
     return g
 
 
-def plot_factor(
+def plot_factors(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
     x="factor",
@@ -634,6 +638,8 @@ def plot_factor(
         ax = sns.violinplot(x=x, y=y, hue=hue, data=z, inner=None, color=".9")
     ax = sns.stripplot(x=x, y=y, hue=hue, data=z, dodge=True, **kwargs)
     sns.despine(offset=10, trim=True)
+
+    ax.set(xlabel="", ylabel="Factor value")
 
     return ax
 
@@ -685,6 +691,7 @@ def plot_factors_matrixplot(
 
     ax = sns.heatmap(z, cmap=cmap, **kwargs)
     ax.set(ylabel="Factor", xlabel="Group")
+    ax.set_yticklabels(ax.yaxis.get_ticklabels(), rotation=0)
 
     return ax
 
@@ -725,7 +732,7 @@ def plot_r2(
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
-    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
+    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
 
@@ -767,7 +774,7 @@ def plot_r2(
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
-    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
+    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
 
@@ -825,7 +832,7 @@ def plot_r2_pvalues(
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), cmap=cmap, **kwargs)
 
-    plt.setp(g.yaxis.get_ticklabels(), rotation=0)
+    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
 
