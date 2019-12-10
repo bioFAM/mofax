@@ -701,45 +701,6 @@ def plot_factors_matrixplot(
 def plot_r2(
     model: mofa_model,
     factors: Union[int, List[int], str, List[str]] = None,
-    view=0,
-    **kwargs,
-):
-    """
-    Plot R2 values for the model (draft)
-
-    Parameters
-    ----------
-    model : mofa_model
-        Factor model
-    factors : optional
-        Index of a factor (or indices of factors) to use (all factors by default)
-    view : optional
-        Make a plot for a cetrain view (first view by default)
-    """
-    r2 = model.get_r2(factors=factors)
-    # Select a certain view if necessary
-    if view is not None:
-        view = model.views[view] if isinstance(view, int) else view
-        r2 = r2[r2["View"] == view]
-    r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
-
-    # Sort by factor index
-    r2_df.index = r2_df.index.astype("category")
-    r2_df.index = r2_df.index.reorder_categories(
-        sorted(r2_df.index.categories, key=lambda x: int(x.split("Factor")[1]))
-    )
-    r2_df = r2_df.sort_values("Factor")
-
-    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
-
-    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
-
-    return g
-
-
-def plot_r2(
-    model: mofa_model,
-    factors: Union[int, List[int], str, List[str]] = None,
     groups_df: pd.DataFrame = None,
     view=0,
     **kwargs,
@@ -774,7 +735,7 @@ def plot_r2(
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
 
-    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
+    g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
 
@@ -832,7 +793,7 @@ def plot_r2_pvalues(
 
     g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), cmap=cmap, **kwargs)
 
-    g.yaxis.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
+    g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
 
