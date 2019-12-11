@@ -610,6 +610,7 @@ def plot_factors(
     y="value",
     hue="group",
     violin=False,
+    groups_df=None,
     **kwargs,
 ):
     """
@@ -629,13 +630,20 @@ def plot_factors(
         Variable to split & colour dots by (cell group by default)
     violin : optional
         Boolean value if to add violin plots
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
     """
     z = model.get_factors(factors=factors, df=True)
     z = z.rename_axis("cell").reset_index()
     # Make the table long for plotting
     z = z.melt(id_vars="cell", var_name="factor", value_name="value")
+
+    # Assign a group to every cell if it is provided
+    if groups_df is None:
+        groups_df = model.get_cells().set_index("cell")
+
     # Add group information for cells
-    z = z.set_index("cell").join(model.get_cells().set_index("cell")).reset_index()
+    z = z.set_index("cell").join(groups_df).reset_index()
 
     if violin:
         ax = sns.violinplot(x=x, y=y, hue=hue, data=z, inner=None, color=".9")
@@ -650,6 +658,7 @@ def plot_factors(
 def plot_factors_matrixplot(
     model: mofa_model,
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
+    groups_df=None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
     agg="mean",
     cmap="viridis",
@@ -664,6 +673,8 @@ def plot_factors_matrixplot(
         Factor model
     factors : optional
         Factor idices or names (all factors by default)
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
     groups : optional
         Group indices or names (all groups by default)
     avg : optional
@@ -676,8 +687,14 @@ def plot_factors_matrixplot(
     z = z.rename_axis("cell").reset_index()
     # Make the table long for plotting
     z = z.melt(id_vars="cell", var_name="factor", value_name="value")
+
+    # Assign a group to every cell if it is provided
+    if groups_df is None:
+        groups_df = model.get_cells().set_index("cell")
+    groups_df.rename(columns={groups_df.columns[0]:'group'}, inplace=True)
+
     # Add group information for cells
-    z = z.set_index("cell").join(model.get_cells().set_index("cell")).reset_index()
+    z = z.set_index("cell").join(groups_df).reset_index()
 
     z = (
         z.groupby(["group", "factor"])
