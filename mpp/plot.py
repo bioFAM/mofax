@@ -809,6 +809,7 @@ def plot_r2_barplot(
     x="Factor",
     y="R2",
     groupby="Group",
+    xticklabels_size=10,
     **kwargs,
 ):
     """
@@ -830,6 +831,8 @@ def plot_r2_barplot(
         Value to plot along the y axis (default is R2)
     groupby : optional
         Column to group bars for R2 values by (default is Group)
+    xticklabels_size : optional
+        Font size for group labels (default is 10)
     """
     r2 = model.get_r2(factors=factors, groups_df=groups_df)
     # Select a certain view if necessary
@@ -848,5 +851,7 @@ def plot_r2_barplot(
     g = sns.barplot(
         data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, **kwargs
     )
+
+    g.set_xticklabels(g.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
 
     return g
