@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="mpp-gtca",
+    name="mofax-gtca",
     version="0.0.1",
     author="Danila Bredikhin",
     author_email="danila.bredikhin@embl.de",
     description="Load and interpret MODE models",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/gtca/mpp",
+    url="https://github.com/gtca/mofax",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
