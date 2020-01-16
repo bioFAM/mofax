@@ -5,7 +5,7 @@ requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
 [tool.poetry]
-name = "mpp"
+name = "mofax"
 version = "0.1.0"
 description = "Work with MOFA+ models in Python"
 authors = ["Danila Bredikhin <danila.bredikhin@embl.de>"]
@@ -17,7 +17,7 @@ python = "*"
 pytest = "^3.4"
 
 [tool.flit.metadata]
-module = "mpp"
+module = "mofax"
 author = "Danila Bredikhin"
 author-email = "danila.bredikhin@embl.de"
-home-page = "https://github.com/gtca/mpp"
+home-page = "https://github.com/gtca/mofax"
