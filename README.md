@@ -1,4 +1,4 @@
-![MOFA+ in Python](img/mpp_header.png)
+![MOFA+ in Python](img/mofax_header.png)
 
 Work with trained factor models in Python.
 
@@ -9,7 +9,7 @@ This library provides convenience functions to load and visualize factor models 
 ### Installation
 
 ```
-pip install git+https://github.com/gtca/mpp
+pip install git+https://github.com/gtca/mofax
 ```
 
 ### Training a factor model
@@ -21,7 +21,7 @@ Please see the [MOFA+ GitHub repository](https://github.com/bioFAM/MOFA2) for mo
 Import the module and create a connection to the HDF5 file with the trained model:
 
 ```python
-import mpp
+import mofax
 
 model = load_model("trained_mofaplus_model.hdf5")
 ```
@@ -68,4 +68,4 @@ Please [check the notebooks](notebooks/) for detailed examples.
 
 ## Contributions
 
-In case you work with MOFA+ models in Python, you might find `mpp` useful. Please consider contributing to this module by suggesting the missing functionality to be implemented [in the form of issues](https://github.com/gtca/mpp/issues) and in the form of [pull requests](https://github.com/gtca/mpp/pulls).
+In case you work with MOFA+ models in Python, you might find `mofax` useful. Please consider contributing to this module by suggesting the missing functionality to be implemented [in the form of issues](https://github.com/gtca/mofax/issues) and in the form of [pull requests](https://github.com/gtca/mofax/pulls).
