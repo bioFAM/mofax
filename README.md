@@ -23,7 +23,7 @@ Import the module and create a connection to the HDF5 file with the trained mode
 ```python
 import mofax
 
-model = load_model("trained_mofaplus_model.hdf5")
+model = mfx.mofa_model("trained_mofaplus_model.hdf5")
 ```
 
 The connection is created in the readonly mode by default and can be terminated by calling the `close()` method on the model object.
