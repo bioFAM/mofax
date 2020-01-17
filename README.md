@@ -21,7 +21,7 @@ Please see the [MOFA+ GitHub repository](https://github.com/bioFAM/MOFA2) for mo
 Import the module and create a connection to the HDF5 file with the trained model:
 
 ```python
-import mofax
+import mofax as mfx
 
 model = mfx.mofa_model("trained_mofaplus_model.hdf5")
 ```
