@@ -723,6 +723,7 @@ def plot_r2(
     factors: Union[int, List[int], str, List[str]] = None,
     groups_df: pd.DataFrame = None,
     view=0,
+    group=None,
     **kwargs,
 ):
     """
@@ -735,7 +736,9 @@ def plot_r2(
     factors : optional
         Index of a factor (or indices of factors) to use (all factors by default)
     view : optional
-        Make a plot for a cetrain view (first view by default)
+        Make a plot for a certain view (first view by default)
+    group : optional
+        Make a plot for a certain group (None by default to plot all groups)
     groups_df : optional pd.DataFrame
         Data frame with cells as index and first column as group assignment
     """
@@ -744,6 +747,10 @@ def plot_r2(
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
+    # Select a certain group if necessary
+    if group is not None:
+        group = model.groups[group] if isinstance(group, int) else group
+        r2 = r2[r2["Group"] == group]
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
 
     # Sort by factor index
