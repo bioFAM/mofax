@@ -178,8 +178,8 @@ class mofa_model:
 
     def get_data(
         self,
+        features: Optional[Union[str, List[str]]],
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
-        features: Optional[Union[str, List[str]]] = None,
         df=False,
     ):
         """
@@ -463,6 +463,45 @@ class mofa_model:
                 )
             )
         return r2
+
+    def project_data(self,
+                     data,
+                     view: Union[str, int] = None,
+                     factors: Union[int, List[int], str, List[str]] = None,
+                     df: bool = False):
+        """
+        Project new data onto the factor space of the model.
+
+        For the projection, a pseudo-inverse of the loadings matrix is calculated 
+        and its product with the provided data matrix is calculated.
+
+        Parameters
+        ----------
+        data
+            Numpy array or Pandas DataFrame with the data matching the number of features
+        view : optional
+            A view of the model to consider (first view by default)
+        factors : optional
+            Indices of factors to use for the projection (all factors by default)
+        """
+        if view is None:
+            view = 0
+        view = self.__check_views([view])
+        findices, factors = self.__check_factors(factors)
+
+        # Calculate the inverse of W
+        winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
+
+        # Predict Z for the provided data
+        zpred = np.dot(data, winv.T)
+
+        if df:
+            zpred = pd.DataFrame(zpred)
+            zpred.columns = factors
+            if isinstance(data, pd.DataFrame):
+                zpred.index = data.index
+        return zpred
+    
 
 
 # Utility functions

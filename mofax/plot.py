@@ -893,3 +893,122 @@ def plot_r2_barplot(
     g.set_xticklabels(g.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
 
     return g
+
+
+def plot_projection(
+    model: mofa_model,
+    data,
+    data_name: str = "projected_data",
+    view: Union[str, int] = None,
+    with_orig: bool = False,
+    x="Factor1",
+    y="Factor2",
+    groups=None,
+    groups_df=None,
+    color=None,
+    linewidth=0,
+    size=5,
+    legend=False,
+    legend_loc="best",
+    legend_prop=None,
+    **kwargs
+):
+    """
+    Project new data onto the factor space of the model.
+    
+    For the projection, a pseudo-inverse of the loadings matrix is calculated 
+    and its product with the provided data matrix is calculated.
+    
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    data
+        Numpy array or Pandas DataFrame with the data matching the number of features
+    data_name : optional
+        A name for the projected dataset ("projected_data" by default)
+    view : optional
+        A view of the model to consider (first view by default)
+    with_orig : optional
+        Boolean value if to plot data from the model (False by default)
+    x : optional
+        Factor to plot along X axis (Factor1 by default)
+    y : optional
+        Factor to plot along Y axis (Factor2 by default)
+    groups : optional
+        Subset of groups to consider
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    color : optional
+        A feature name to colour the dots by its expression
+    linewidth : optional
+        Linewidth argument for dots (default is 0)
+    size : optional
+        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
+    legend : optional bool
+        If to show the legend (e.g. colours matching groups)
+    legend_loc : optional
+        Legend location (e.g. 'upper left', 'center', or 'best')
+    legend_prop : optional
+        The font properties of the legend
+    """
+    zpred = model.project_data(data=data, view=view, factors=[x, y], df=True)
+    zpred.columns = ["x", "y"]
+
+    # Get and prepare Z matrix from the model if required
+    if with_orig:
+        z = model.get_factors(factors=[x, y], groups=groups, df=True)
+        z.columns = ["x", "y"]
+
+        # Assign a group to every cell if it is provided
+        if groups_df is None:
+            groups_df = model.get_cells().set_index("cell")
+
+        z = z.rename_axis("cell").reset_index()
+        z = z.set_index("cell").join(groups_df).reset_index()
+        grouping_var = groups_df.columns[0]
+
+        # Assign colour to every cell if colouring by feature expression
+        if color is None:
+            color_var = grouping_var
+        else:
+            color_var = color
+            color_df = model.get_data(features=color, df=True)
+            z = z.set_index("cell").join(color_df).reset_index()
+            z = z.sort_values(color_var)
+    else:
+        grouping_var = "group"
+    zpred[grouping_var] = data_name
+
+    # Assign colour to every cell in the new data if colouring by feature expression
+    if color is None:
+        color_var = grouping_var
+    # TODO: implement colouring by feature expression
+
+    if with_orig:
+        z = zpred.append(z)
+    else:
+        z = zpred
+
+    # Define plot axes labels
+    x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
+    y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
+
+    # Set default colour to black if none set
+    if "c" not in kwargs and "color" not in kwargs:
+        kwargs["color"] = "black"
+   
+    g = sns.scatterplot(
+        x="x",
+        y="y",
+        data=z,
+        linewidth=linewidth,
+        s=size,
+        hue=color_var,
+        **kwargs,
+    )
+    sns.despine(offset=10, trim=True, ax=g)
+    g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+
+    return g
+    
