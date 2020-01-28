@@ -911,6 +911,7 @@ def plot_projection(
     legend=False,
     legend_loc="best",
     legend_prop=None,
+    feature_intersection=False,
     **kwargs
 ):
     """
@@ -951,8 +952,10 @@ def plot_projection(
         Legend location (e.g. 'upper left', 'center', or 'best')
     legend_prop : optional
         The font properties of the legend
+    feature_intersection : optional
+        Feature intersection flag for project_data
     """
-    zpred = model.project_data(data=data, view=view, factors=[x, y], df=True)
+    zpred = model.project_data(data=data, view=view, factors=[x, y], df=True, feature_intersection=feature_intersection)
     zpred.columns = ["x", "y"]
 
     # Get and prepare Z matrix from the model if required

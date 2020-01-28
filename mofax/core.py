@@ -4,6 +4,7 @@ import pandas as pd
 
 from typing import Union, List, Optional
 from collections.abc import Iterable
+import warnings
 
 
 class mofa_model:
@@ -468,7 +469,8 @@ class mofa_model:
                      data,
                      view: Union[str, int] = None,
                      factors: Union[int, List[int], str, List[str]] = None,
-                     df: bool = False):
+                     df: bool = False,
+                     feature_intersection: bool = False):
         """
         Project new data onto the factor space of the model.
 
@@ -486,11 +488,26 @@ class mofa_model:
         """
         if view is None:
             view = 0
-        view = self.__check_views([view])
+        view = self.__check_views([view])[0]
         findices, factors = self.__check_factors(factors)
 
         # Calculate the inverse of W
         winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
+
+        # Find feature intersection to match the dimensions
+        if feature_intersection:
+            if data.shape[1] != self.shape[1] and isinstance(data, pd.DataFrame):
+                fs_common = np.intersect1d(data.columns.values, self.features[view])
+                data = data.loc[:,fs_common]
+
+                # Get indices of the common features in the original data
+                f_sorted = np.argsort(self.features[view])
+                fs_common_pos = np.searchsorted(self.features[view][f_sorted], fs_common)
+                f_indices = f_sorted[fs_common_pos]
+
+                winv = winv[:,f_indices]
+                warnings.warn("Only {} features are matching between two datasets of size {} (original data) and {} (projected data).".format(
+                              fs_common.shape[0], self.shape[1], data.shape[1]))
 
         # Predict Z for the provided data
         zpred = np.dot(data, winv.T)
