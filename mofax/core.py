@@ -198,9 +198,9 @@ class mofa_model:
         # If a sole feature name is used, wrap it in a list
         if not isinstance(features, Iterable) or isinstance(features, str):
             features = [features]
-        # else:
-        #     # Make feature names unique
-        #     features = list(set(features))
+        else:
+            # Make feature names unique
+            features = list(set(features))
 
         # Deduce the view from the feature name
         fs = self.get_features()
