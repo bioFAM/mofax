@@ -217,7 +217,7 @@ class mofa_model:
         )
         if df:
             y = pd.DataFrame(y)
-            y.columns = features
+            y.columns = fs.feature.values[f_i]
             y.index = np.concatenate(tuple(self.cells[g] for g in groups))
         return y
 
