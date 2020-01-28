@@ -176,6 +176,51 @@ class mofa_model:
             w = np.absolute(w)
         return w
 
+    def get_data(
+        self,
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        features: Optional[Union[str, List[str]]] = None,
+        df=False,
+    ):
+        """
+        Get the subset of the training data matrix as a NumPy array or as a DataFrame (df=True).
+
+        Parameters
+        ----------
+        groups : optional
+            List of groups to consider
+        features : optional
+            Features to consider (from one view)
+        df : optional
+            Boolean value if to return Y matrix as a DataFrame
+        """
+        groups = self.__check_groups(groups)
+        # If a sole feature name is used, wrap it in a list
+        if not isinstance(features, Iterable) or isinstance(features, str):
+            features = [features]
+        # else:
+        #     # Make feature names unique
+        #     features = list(set(features))
+
+        # Deduce the view from the feature name
+        fs = self.get_features()
+        f_view = fs.iloc[np.where(fs.feature.isin(features))[0],:].view.unique()
+        assert len(f_view) == 1, "All the features should be from one view"
+        f_view = f_view[0]
+
+        # Determine feature index in that view
+        fs = self.get_features(views=f_view)
+        f_i = np.where(fs.feature.isin(features))[0]
+
+        y = np.concatenate(
+            tuple(np.array(self.data[f_view][group])[:,f_i] for group in groups)
+        )
+        if df:
+            y = pd.DataFrame(y)
+            y.columns = features
+            y.index = np.concatenate(tuple(self.cells[g] for g in groups))
+        return y
+
     def __check_views(self, views):
         return self.__check_grouping(views, "views")
 

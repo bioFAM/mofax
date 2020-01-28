@@ -498,7 +498,9 @@ def plot_factors_scatter(
     y="Factor2",
     hist=False,
     kde=False,
+    groups=None,
     groups_df=None,
+    color=None,
     linewidth=0,
     size=5,
     legend=False,
@@ -521,8 +523,12 @@ def plot_factors_scatter(
         Boolean value if to add marginal histograms to the scatterplot (jointplot)
     kde : optional
         Boolean value if to add marginal distributions to the scatterplot (jointplot)
+    groups : optional
+        Subset of groups to consider
     groups_df : optional pd.DataFrame
         Data frame with cells as index and first column as group assignment
+    color : optional
+        Grouping variable by default, alternatively a feature name can be provided (when no kde/hist)
     linewidth : optional
         Linewidth argument for dots (default is 0)
     size : optional
@@ -534,7 +540,7 @@ def plot_factors_scatter(
     legend_prop : optional
         The font properties of the legend
     """
-    z = model.get_factors(factors=[x, y], df=True)
+    z = model.get_factors(factors=[x, y], groups=groups, df=True)
     z.columns = ["x", "y"]
 
     # Assign a group to every cell if it is provided
@@ -545,6 +551,14 @@ def plot_factors_scatter(
     z = z.set_index("cell").join(groups_df).reset_index()
     grouping_var = groups_df.columns[0]
 
+    # Assign colour to every cell if colouring by feature expression
+    if color is None:
+        color_var = grouping_var
+    else:
+        color_var = color
+        color_df = model.get_data(features=color, df=True)
+        z = z.set_index("cell").join(color_df).reset_index()
+        z = z.sort_values(color_var)
 
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
@@ -590,7 +604,7 @@ def plot_factors_scatter(
                 data=z,
                 linewidth=linewidth,
                 s=size,
-                hue=grouping_var,
+                hue=color_var,
                 **kwargs,
             )
         else:
