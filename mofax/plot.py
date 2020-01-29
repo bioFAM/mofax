@@ -605,11 +605,12 @@ def plot_factors_scatter(
                 linewidth=linewidth,
                 s=size,
                 hue=color_var,
+                legend=legend,
                 **kwargs,
             )
         else:
             g = sns.scatterplot(
-                x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs
+                x="x", y="y", data=z, linewidth=linewidth, s=size, legend=legend, **kwargs
             )
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
@@ -1008,6 +1009,7 @@ def plot_projection(
         linewidth=linewidth,
         s=size,
         hue=color_var,
+        legend=legend,
         **kwargs,
     )
     sns.despine(offset=10, trim=True, ax=g)
