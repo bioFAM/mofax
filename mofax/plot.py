@@ -990,7 +990,7 @@ def plot_projection(
     # TODO: implement colouring by feature expression
 
     if with_orig:
-        z = zpred.append(z)
+        z = z.append(zpred)
     else:
         z = zpred
 
