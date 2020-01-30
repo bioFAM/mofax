@@ -987,7 +987,12 @@ def plot_projection(
     # Assign colour to every cell in the new data if colouring by feature expression
     if color is None:
         color_var = grouping_var
-    # TODO: implement colouring by feature expression
+    else:
+        if isinstance(data, pd.DataFrame):
+            color_var = color
+            color_df = data.loc[:,[color]]
+            zpred = zpred.join(color_df).reset_index()
+            zpred = zpred.sort_values(color_var)
 
     if with_orig:
         z = z.append(zpred)
