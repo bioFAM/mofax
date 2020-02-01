@@ -26,7 +26,11 @@ import mofax as mfx
 model = mfx.mofa_model("trained_mofaplus_model.hdf5")
 ```
 
-The connection is created in the readonly mode by default and can be terminated by calling the `close()` method on the model object.
+The connection is created in the readonly mode by default and can be terminated by calling the `close()` method on the model object at the end of the working session:
+
+```python
+model.close()
+```
 
 #### Model object
 
