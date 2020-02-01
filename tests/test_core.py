@@ -23,6 +23,9 @@ class TestMofaModelMethods(unittest.TestCase):
     def test_shape(self):
         self.assertIsInstance(self.model.shape, tuple)
 
+    def test_cells(self):
+        self.assertIsInstance(self.model.get_cells(df=True), pd.DataFrame)
+
     def tearDown(self):
         self.model.close()
 
