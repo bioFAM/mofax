@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Danila Bredikhin",
     author_email="danila.bredikhin@embl.de",
-    description="Load and interpret MODE models",
+    description="Load and interpret MOFA models",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/gtca/mofax",
