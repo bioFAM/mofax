@@ -518,10 +518,36 @@ class mofa_model:
             if isinstance(data, pd.DataFrame):
                 zpred.index = data.index
         return zpred
-    
 
 
 # Utility functions
+
+def umap(data,
+         n_neighbors=10,
+         spread=1):
+    """
+    Run UMAP on a provided matrix or data frame
+
+    Parameters
+    ----------
+    data
+        Numpy array or Pandas DataFrame with data to run UMAP on (samples in rows)
+    n_neighbors : optional
+        n_neighbors parameter for UMAP
+    spread : optional
+        spread parameter for UMAP
+    """
+    import umap
+    embedding = umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(data)
+
+    if isinstance(data, pd.DataFrame):
+        embedding = pd.DataFrame(embedding)
+        embedding.columns = ["UMAP1", "UMAP2"]
+        embedding.index = data.index
+
+    return embedding
+
+
 def padjust_fdr(xs):
     """
     Adjust p-values using the BH procedure

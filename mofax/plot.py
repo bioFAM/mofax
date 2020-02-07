@@ -731,6 +731,105 @@ def plot_factors_matrixplot(
     return ax
 
 
+def plot_factors_umap(
+    model: mofa_model,
+    embedding: pd.DataFrame = None,
+    factors: Optional[Union[int, List[int]]] = None,
+    groups=None,
+    groups_df=None,
+    color=None,
+    linewidth=0,
+    size=5,
+    legend=False,
+    legend_loc="best",
+    legend_prop=None,
+    n_neighbors=10,
+    spread=1,
+    **kwargs,
+):
+    """
+    Plot factor values for two factors
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    embedding : optional pd.DataFrame
+        Output of UMAP embedding from mofax.umap (or any other embedding with cells as index)
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    groups : optional
+        Subset of groups to consider
+    groups_df : optional pd.DataFrame
+        Data frame with cells as index and first column as group assignment
+    color : optional
+        Grouping variable by default, alternatively a feature name can be provided
+    linewidth : optional
+        Linewidth argument for dots (default is 0)
+    size : optional
+        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
+    legend : optional bool
+        If to show the legend (e.g. colours matching groups)
+    legend_loc : optional
+        Legend location (e.g. 'upper left', 'center', or 'best')
+    legend_prop : optional
+        The font properties of the legend
+    n_neighbors : optional
+        n_neighbors parameter for UMAP
+    spread : optional
+        spread parameter for UMAP
+    """
+
+    if embedding is None:
+        z = model.get_factors(factors=factors, groups=groups)
+
+        import umap
+        embedding = pd.DataFrame(umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(z))
+
+        embedding.columns = ["UMAP1", "UMAP2"]
+        embedding.index = model.get_cells().cell
+
+    x, y, *_ = embedding.columns
+
+    # Assign a group to every cell if it is provided
+    if groups_df is None:
+        groups_df = model.get_cells().set_index("cell")
+
+    embedding = embedding.rename_axis("cell").reset_index()
+    embedding = embedding.set_index("cell").join(groups_df).reset_index()
+    grouping_var = groups_df.columns[0]
+
+    # Assign colour to every cell if colouring by feature expression
+    if color is None:
+        color_var = grouping_var
+    else:
+        color_var = color
+        color_df = model.get_data(features=color, df=True)
+        embedding = embedding.set_index("cell").join(color_df).reset_index()
+        embedding = embedding.sort_values(color_var)
+
+    # Define plot axes labels
+    x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
+    y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
+
+    # Set default colour to black if none set
+    if "c" not in kwargs and "color" not in kwargs:
+        kwargs["color"] = "black"
+
+    if groups_df is not None:
+        g = sns.scatterplot(
+            x=x,
+            y=y,
+            data=embedding,
+            linewidth=linewidth,
+            s=size,
+            hue=color_var,
+            legend=legend,
+            **kwargs,
+        )
+    return g
+
+
 ### VARIANCE EXPLAINED ###
 
 def plot_r2(
