@@ -12,6 +12,7 @@ sns.set_palette("Set2")
 
 ### WEIGHTS (LOADINGS) ###
 
+
 def plot_weights(
     model: mofa_model,
     factor="Factor1",
@@ -309,8 +310,12 @@ def plot_weights_heatmap(
         **kwargs,
     )
 
-    cg.ax_heatmap.set_xticklabels(cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
-    cg.ax_heatmap.set_yticklabels(cg.ax_heatmap.yaxis.get_ticklabels(), rotation=0, size=yticklabels_size)
+    cg.ax_heatmap.set_xticklabels(
+        cg.ax_heatmap.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size
+    )
+    cg.ax_heatmap.set_yticklabels(
+        cg.ax_heatmap.yaxis.get_ticklabels(), rotation=0, size=yticklabels_size
+    )
 
     return cg
 
@@ -451,7 +456,11 @@ def plot_weights_scatter(
     label_size : optional
         Font size of feature labels (default is 5)
     """
-    w = model.get_weights(views=view, factors=[x, y], df=True).rename_axis("feature").reset_index()
+    w = (
+        model.get_weights(views=view, factors=[x, y], df=True)
+        .rename_axis("feature")
+        .reset_index()
+    )
 
     # Get features to label
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
@@ -491,6 +500,7 @@ def plot_weights_scatter(
 
 
 ### FACTOR VALUES ###
+
 
 def plot_factors_scatter(
     model: mofa_model,
@@ -610,7 +620,13 @@ def plot_factors_scatter(
             )
         else:
             g = sns.scatterplot(
-                x="x", y="y", data=z, linewidth=linewidth, s=size, legend=legend, **kwargs
+                x="x",
+                y="y",
+                data=z,
+                linewidth=linewidth,
+                s=size,
+                legend=legend,
+                **kwargs,
             )
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
@@ -706,7 +722,7 @@ def plot_factors_matrixplot(
     # Assign a group to every cell if it is provided
     if groups_df is None:
         groups_df = model.get_cells().set_index("cell")
-    groups_df.rename(columns={groups_df.columns[0]:'group'}, inplace=True)
+    groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
     # Add group information for cells
     z = z.set_index("cell").join(groups_df).reset_index()
@@ -784,7 +800,10 @@ def plot_factors_umap(
         z = model.get_factors(factors=factors, groups=groups)
 
         import umap
-        embedding = pd.DataFrame(umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(z))
+
+        embedding = pd.DataFrame(
+            umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(z)
+        )
 
         embedding.columns = ["UMAP1", "UMAP2"]
         embedding.index = model.get_cells().cell
@@ -831,6 +850,7 @@ def plot_factors_umap(
 
 
 ### VARIANCE EXPLAINED ###
+
 
 def plot_r2(
     model: mofa_model,
@@ -1012,7 +1032,7 @@ def plot_projection(
     legend_loc="best",
     legend_prop=None,
     feature_intersection=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Project new data onto the factor space of the model.
@@ -1055,7 +1075,13 @@ def plot_projection(
     feature_intersection : optional
         Feature intersection flag for project_data
     """
-    zpred = model.project_data(data=data, view=view, factors=[x, y], df=True, feature_intersection=feature_intersection)
+    zpred = model.project_data(
+        data=data,
+        view=view,
+        factors=[x, y],
+        df=True,
+        feature_intersection=feature_intersection,
+    )
     zpred.columns = ["x", "y"]
 
     # Get and prepare Z matrix from the model if required
@@ -1089,7 +1115,7 @@ def plot_projection(
     else:
         if isinstance(data, pd.DataFrame):
             color_var = color
-            color_df = data.loc[:,[color]]
+            color_df = data.loc[:, [color]]
             zpred = zpred.join(color_df).reset_index()
             zpred = zpred.sort_values(color_var)
 
@@ -1105,7 +1131,7 @@ def plot_projection(
     # Set default colour to black if none set
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
-   
+
     g = sns.scatterplot(
         x="x",
         y="y",
@@ -1120,4 +1146,3 @@ def plot_projection(
     g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
     return g
-    

@@ -4,16 +4,15 @@ import unittest
 import pandas as pd
 import mofax
 
-TEST_MODEL = os.path.join(os.path.dirname(__file__), 'mofa2_test_model.hdf5')
+TEST_MODEL = os.path.join(os.path.dirname(__file__), "mofa2_test_model.hdf5")
+
 
 class TestMofaModelConnection(unittest.TestCase):
-
     def test_connection(self):
         self.assertIsInstance(mofax.mofa_model(TEST_MODEL), mofax.mofa_model)
 
 
 class TestMofaModelMethods(unittest.TestCase):
-
     def setUp(self):
         self.model = mofax.mofa_model(TEST_MODEL)
 
@@ -29,8 +28,8 @@ class TestMofaModelMethods(unittest.TestCase):
     def tearDown(self):
         self.model.close()
 
-class TestR2(unittest.TestCase):
 
+class TestR2(unittest.TestCase):
     def setUp(self):
         self.model = mofax.mofa_model(TEST_MODEL)
 
@@ -41,5 +40,5 @@ class TestR2(unittest.TestCase):
         self.model.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

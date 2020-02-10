@@ -205,7 +205,7 @@ class mofa_model:
 
         # Deduce the view from the feature name
         fs = self.get_features()
-        f_view = fs.iloc[np.where(fs.feature.isin(features))[0],:].view.unique()
+        f_view = fs.iloc[np.where(fs.feature.isin(features))[0], :].view.unique()
         assert len(f_view) == 1, "All the features should be from one view"
         f_view = f_view[0]
 
@@ -214,7 +214,7 @@ class mofa_model:
         f_i = np.where(fs.feature.isin(features))[0]
 
         y = np.concatenate(
-            tuple(np.array(self.data[f_view][group])[:,f_i] for group in groups)
+            tuple(np.array(self.data[f_view][group])[:, f_i] for group in groups)
         )
         if df:
             y = pd.DataFrame(y)
@@ -465,12 +465,14 @@ class mofa_model:
             )
         return r2
 
-    def project_data(self,
-                     data,
-                     view: Union[str, int] = None,
-                     factors: Union[int, List[int], str, List[str]] = None,
-                     df: bool = False,
-                     feature_intersection: bool = False):
+    def project_data(
+        self,
+        data,
+        view: Union[str, int] = None,
+        factors: Union[int, List[int], str, List[str]] = None,
+        df: bool = False,
+        feature_intersection: bool = False,
+    ):
         """
         Project new data onto the factor space of the model.
 
@@ -498,16 +500,21 @@ class mofa_model:
         if feature_intersection:
             if data.shape[1] != self.shape[1] and isinstance(data, pd.DataFrame):
                 fs_common = np.intersect1d(data.columns.values, self.features[view])
-                data = data.loc[:,fs_common]
+                data = data.loc[:, fs_common]
 
                 # Get indices of the common features in the original data
                 f_sorted = np.argsort(self.features[view])
-                fs_common_pos = np.searchsorted(self.features[view][f_sorted], fs_common)
+                fs_common_pos = np.searchsorted(
+                    self.features[view][f_sorted], fs_common
+                )
                 f_indices = f_sorted[fs_common_pos]
 
-                winv = winv[:,f_indices]
-                warnings.warn("Only {} features are matching between two datasets of size {} (original data) and {} (projected data).".format(
-                              fs_common.shape[0], self.shape[1], data.shape[1]))
+                winv = winv[:, f_indices]
+                warnings.warn(
+                    "Only {} features are matching between two datasets of size {} (original data) and {} (projected data).".format(
+                        fs_common.shape[0], self.shape[1], data.shape[1]
+                    )
+                )
 
         # Predict Z for the provided data
         zpred = np.dot(data, winv.T)
@@ -522,9 +529,8 @@ class mofa_model:
 
 # Utility functions
 
-def umap(data,
-         n_neighbors=10,
-         spread=1):
+
+def umap(data, n_neighbors=10, spread=1):
     """
     Run UMAP on a provided matrix or data frame
 
@@ -538,6 +544,7 @@ def umap(data,
         spread parameter for UMAP
     """
     import umap
+
     embedding = umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(data)
 
     if isinstance(data, pd.DataFrame):
