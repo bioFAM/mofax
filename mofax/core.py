@@ -78,7 +78,7 @@ class mofa_model:
 
     def get_samples(self, groups=None):
         """
-        Get the cell metadata table (cell ID and its respective group)
+        Get the sample metadata table (sample ID and its respective group)
 
         Parameters
         ----------
@@ -93,11 +93,23 @@ class mofa_model:
                 for cell in cell_list
                 if group in groups
             ],
-            columns=["group", "cell"],
+            columns=["group", "sample"],
         )
 
     # Alias samples as cells
-    get_cells = get_samples
+    def get_cells(self, groups=None):
+        """
+        Get the cell metadata table (cell ID and its respective group)
+
+        Parameters
+        ----------
+        groups : optional
+            List of groups to consider
+        """
+        cells = self.get_samples(groups)
+        cells.columns = ["group", "cell"]
+        return cells
+
 
     def get_features(self, views=None):
         """
