@@ -536,7 +536,7 @@ def plot_factors_scatter(
     groups : optional
         Subset of groups to consider
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided (when no kde/hist)
     linewidth : optional
@@ -555,10 +555,10 @@ def plot_factors_scatter(
 
     # Assign a group to every cell if it is provided
     if groups_df is None:
-        groups_df = model.get_cells().set_index("cell")
+        groups_df = model.get_samples().set_index("sample")
 
-    z = z.rename_axis("cell").reset_index()
-    z = z.set_index("cell").join(groups_df).reset_index()
+    z = z.rename_axis("sample").reset_index()
+    z = z.set_index("sample").join(groups_df).reset_index()
     grouping_var = groups_df.columns[0]
 
     # Assign colour to every cell if colouring by feature expression
@@ -567,7 +567,7 @@ def plot_factors_scatter(
     else:
         color_var = color
         color_df = model.get_data(features=color, df=True)
-        z = z.set_index("cell").join(color_df).reset_index()
+        z = z.set_index("sample").join(color_df).reset_index()
         z = z.sort_values(color_var)
 
     # Define plot axes labels
@@ -581,16 +581,16 @@ def plot_factors_scatter(
     if hist or kde:
         if groups_df is not None:
             # Construct a custom joint plot
-            # in order to colour cells
+            # in order to colour samples (cells)
             g = sns.JointGrid(x="x", y="y", data=z)
             group_labels = []
-            for group, group_cells in z.groupby(grouping_var):
-                sns.distplot(group_cells["x"], ax=g.ax_marg_x, kde=kde, hist=hist)
+            for group, group_samples in z.groupby(grouping_var):
+                sns.distplot(group_samples["x"], ax=g.ax_marg_x, kde=kde, hist=hist)
                 sns.distplot(
-                    group_cells["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
+                    group_samples["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
                 )
                 g.ax_joint.plot(
-                    group_cells["x"], group_cells["y"], "o", ms=size, **kwargs
+                    group_samples["x"], group_samples["y"], "o", ms=size, **kwargs
                 )
                 group_labels.append(group)
             if legend:
@@ -662,19 +662,19 @@ def plot_factors(
     violin : optional
         Boolean value if to add violin plots
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     """
     z = model.get_factors(factors=factors, df=True)
-    z = z.rename_axis("cell").reset_index()
+    z = z.rename_axis("sample").reset_index()
     # Make the table long for plotting
-    z = z.melt(id_vars="cell", var_name="factor", value_name="value")
+    z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every cell if it is provided
     if groups_df is None:
-        groups_df = model.get_cells().set_index("cell")
+        groups_df = model.get_samples().set_index("sample")
 
-    # Add group information for cells
-    z = z.set_index("cell").join(groups_df).reset_index()
+    # Add group information for samples (cells)
+    z = z.set_index("sample").join(groups_df).reset_index()
 
     if violin:
         ax = sns.violinplot(x=x, y=y, hue=hue, data=z, inner=None, color=".9")
@@ -705,7 +705,7 @@ def plot_factors_matrixplot(
     factors : optional
         Factor idices or names (all factors by default)
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     groups : optional
         Group indices or names (all groups by default)
     avg : optional
@@ -715,17 +715,17 @@ def plot_factors_matrixplot(
     """
 
     z = model.get_factors(factors=factors, groups=groups, df=True)
-    z = z.rename_axis("cell").reset_index()
+    z = z.rename_axis("sample").reset_index()
     # Make the table long for plotting
-    z = z.melt(id_vars="cell", var_name="factor", value_name="value")
+    z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
-    # Assign a group to every cell if it is provided
+    # Assign a group to every sample (cell) if it is provided
     if groups_df is None:
-        groups_df = model.get_cells().set_index("cell")
+        groups_df = model.get_samples().set_index("sample")
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
-    # Add group information for cells
-    z = z.set_index("cell").join(groups_df).reset_index()
+    # Add group information for samples (cells)
+    z = z.set_index("sample").join(groups_df).reset_index()
 
     z = (
         z.groupby(["group", "factor"])
@@ -771,13 +771,13 @@ def plot_factors_umap(
     model : mofa_model
         Factor model
     embedding : optional pd.DataFrame
-        Output of UMAP embedding from mofax.umap (or any other embedding with cells as index)
+        Output of UMAP embedding from mofax.umap (or any other embedding with samples (cells) as index)
     factors : optional
         Index of a factor (or indices of factors) to use (all factors by default)
     groups : optional
         Subset of groups to consider
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided
     linewidth : optional
@@ -806,25 +806,25 @@ def plot_factors_umap(
         )
 
         embedding.columns = ["UMAP1", "UMAP2"]
-        embedding.index = model.get_cells().cell
+        embedding.index = model.get_samples().sample
 
     x, y, *_ = embedding.columns
 
-    # Assign a group to every cell if it is provided
+    # Assign a group to every sample (cell) if it is provided
     if groups_df is None:
-        groups_df = model.get_cells().set_index("cell")
+        groups_df = model.get_samples().set_index("sample")
 
-    embedding = embedding.rename_axis("cell").reset_index()
-    embedding = embedding.set_index("cell").join(groups_df).reset_index()
+    embedding = embedding.rename_axis("sample").reset_index()
+    embedding = embedding.set_index("sample").join(groups_df).reset_index()
     grouping_var = groups_df.columns[0]
 
-    # Assign colour to every cell if colouring by feature expression
+    # Assign colour to every sample (cell) if colouring by feature expression
     if color is None:
         color_var = grouping_var
     else:
         color_var = color
         color_df = model.get_data(features=color, df=True)
-        embedding = embedding.set_index("cell").join(color_df).reset_index()
+        embedding = embedding.set_index("sample").join(color_df).reset_index()
         embedding = embedding.sort_values(color_var)
 
     # Define plot axes labels
@@ -874,7 +874,7 @@ def plot_r2(
     group : optional
         Make a plot for a certain group (None by default to plot all groups)
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     """
     r2 = model.get_r2(factors=factors, groups_df=groups_df)
     # Select a certain view if necessary
@@ -923,7 +923,7 @@ def plot_r2_pvalues(
     view : optional
         Make a plot for a cetrain view (first view by default)
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     fdr : optional bool
         If plot corrected PValues (FDR)
     cmap : optional
@@ -982,7 +982,7 @@ def plot_r2_barplot(
     view : optional
         Make a plot for a cetrain view (first view by default)
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     x : optional
         Value to plot along the x axis (default is Factor)
     y : optional
@@ -1059,7 +1059,7 @@ def plot_projection(
     groups : optional
         Subset of groups to consider
     groups_df : optional pd.DataFrame
-        Data frame with cells as index and first column as group assignment
+        Data frame with samples (cells) as index and first column as group assignment
     color : optional
         A feature name to colour the dots by its expression
     linewidth : optional
@@ -1089,27 +1089,27 @@ def plot_projection(
         z = model.get_factors(factors=[x, y], groups=groups, df=True)
         z.columns = ["x", "y"]
 
-        # Assign a group to every cell if it is provided
+        # Assign a group to every sample (cell) if it is provided
         if groups_df is None:
-            groups_df = model.get_cells().set_index("cell")
+            groups_df = model.get_samples().set_index("sample")
 
-        z = z.rename_axis("cell").reset_index()
-        z = z.set_index("cell").join(groups_df).reset_index()
+        z = z.rename_axis("sample").reset_index()
+        z = z.set_index("sample").join(groups_df).reset_index()
         grouping_var = groups_df.columns[0]
 
-        # Assign colour to every cell if colouring by feature expression
+        # Assign colour to every sample (cell) if colouring by feature expression
         if color is None:
             color_var = grouping_var
         else:
             color_var = color
             color_df = model.get_data(features=color, df=True)
-            z = z.set_index("cell").join(color_df).reset_index()
+            z = z.set_index("sample").join(color_df).reset_index()
             z = z.sort_values(color_var)
     else:
         grouping_var = "group"
     zpred[grouping_var] = data_name
 
-    # Assign colour to every cell in the new data if colouring by feature expression
+    # Assign colour to every sample (cell) in the new data if colouring by feature expression
     if color is None:
         color_var = grouping_var
     else:
