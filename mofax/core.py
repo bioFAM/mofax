@@ -11,7 +11,7 @@ class mofa_model:
     """Class around HDF5-based model on disk.
 
     This class is a thin wrapper for the HDF5 file where the trained MOFA+ model is stored.
-    It also provides utility functions to get factors, weights, features, and cells info
+    It also provides utility functions to get factors, weights, features, and samples (cells) info
     in the form of Pandas dataframes, and data as a NumPy array.
     """
 
@@ -29,6 +29,8 @@ class mofa_model:
             m: np.array(self.model["features"][m]).astype("str")
             for m in self.model["features"]
         }
+        # Alias samples as cells
+        self.cells = self.samples
 
         self.groups = list(self.model["samples"].keys())
         self.views = list(self.model["features"].keys())
@@ -57,7 +59,7 @@ class mofa_model:
 
     def get_shape(self, groups=None, views=None):
         """
-        Get the shape of all the data, cells and features pulled across groups and views.
+        Get the shape of all the data, samples (cells) and features pulled across groups and views.
 
         Parameters
         ----------
@@ -74,7 +76,7 @@ class mofa_model:
         )
         return shape
 
-    def get_cells(self, groups=None):
+    def get_samples(self, groups=None):
         """
         Get the cell metadata table (cell ID and its respective group)
 
@@ -93,6 +95,9 @@ class mofa_model:
             ],
             columns=["group", "cell"],
         )
+
+    # Alias samples as cells
+    get_cells = get_samples
 
     def get_features(self, views=None):
         """
@@ -140,7 +145,7 @@ class mofa_model:
         if df:
             z = pd.DataFrame(z)
             z.columns = factors
-            z.index = np.concatenate(tuple(self.cells[g] for g in groups))
+            z.index = np.concatenate(tuple(self.samples[g] for g in groups))
         return z
 
     def get_weights(
@@ -219,7 +224,7 @@ class mofa_model:
         if df:
             y = pd.DataFrame(y)
             y.columns = fs.feature.values[f_i]
-            y.index = np.concatenate(tuple(self.cells[g] for g in groups))
+            y.index = np.concatenate(tuple(self.samples[g] for g in groups))
         return y
 
     def __check_views(self, views):
@@ -297,7 +302,7 @@ class mofa_model:
 
         # When calculating for a custom set of groups,
         # Z matrix has to be merged and then split
-        # according to the new grouping of cells
+        # according to the new grouping of samples
         else:
             custom_groups = groups_df.iloc[:, 0].unique()
 
@@ -364,7 +369,7 @@ class mofa_model:
         r2_df = pd.DataFrame()
 
         if groups_df is None:
-            groups_df = self.get_cells().set_index("cell")
+            groups_df = self.get_samples().set_index("cell")
 
         custom_groups = groups_df.iloc[:, 0].unique()
 
