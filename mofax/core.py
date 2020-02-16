@@ -21,7 +21,7 @@ class mofa_model:
 
         self.data = self.model["data"]
 
-        self.cells = {
+        self.samples = {
             g: np.array(self.model["samples"][g]).astype("str")
             for g in self.model["samples"]
         }
