@@ -858,6 +858,7 @@ def plot_r2(
     groups_df: pd.DataFrame = None,
     view=0,
     group=None,
+    cmap="Blues",
     **kwargs,
 ):
     """
@@ -875,6 +876,8 @@ def plot_r2(
         Make a plot for a certain group (None by default to plot all groups)
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    cmap : optional
+        The colourmap for the heatmap (default is 'Blues' with darker colour for higher R2)
     """
     r2 = model.get_r2(factors=factors, groups_df=groups_df)
     # Select a certain view if necessary
@@ -894,7 +897,7 @@ def plot_r2(
     )
     r2_df = r2_df.sort_values("Factor")
 
-    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), **kwargs)
+    g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), cmap=cmap, **kwargs)
 
     g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
