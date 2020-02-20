@@ -510,6 +510,7 @@ def plot_factors_scatter(
     kde=False,
     groups=None,
     groups_df=None,
+    group_label=None,
     color=None,
     linewidth=0,
     size=5,
@@ -537,6 +538,8 @@ def plot_factors_scatter(
         Subset of groups to consider
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided (when no kde/hist)
     linewidth : optional
@@ -554,8 +557,11 @@ def plot_factors_scatter(
     z.columns = ["x", "y"]
 
     # Assign a group to every cell if it is provided
+    if groups_df is None and group_label is None:
+        group_label = "group"
+
     if groups_df is None:
-        groups_df = model.get_samples().set_index("sample")
+        groups_df = self.samples_metadata.loc[:,[group_label]]
 
     z = z.rename_axis("sample").reset_index()
     z = z.set_index("sample").join(groups_df).reset_index()
@@ -642,6 +648,7 @@ def plot_factors(
     hue="group",
     violin=False,
     groups_df=None,
+    group_label: Optional[str] = None,
     **kwargs,
 ):
     """
@@ -663,6 +670,8 @@ def plot_factors(
         Boolean value if to add violin plots
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     """
     z = model.get_factors(factors=factors, df=True)
     z = z.rename_axis("sample").reset_index()
@@ -670,8 +679,11 @@ def plot_factors(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every cell if it is provided
+    if groups_df is None and group_label is None:
+        group_label = "group"
+
     if groups_df is None:
-        groups_df = model.get_samples().set_index("sample")
+        groups_df = self.samples_metadata.loc[:,[group_label]]
 
     # Add group information for samples (cells)
     z = z.set_index("sample").join(groups_df).reset_index()
@@ -690,6 +702,7 @@ def plot_factors_matrixplot(
     model: mofa_model,
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
     groups_df=None,
+    group_label: Optional[str] = None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
     agg="mean",
     cmap="viridis",
@@ -706,6 +719,8 @@ def plot_factors_matrixplot(
         Factor idices or names (all factors by default)
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     groups : optional
         Group indices or names (all groups by default)
     avg : optional
@@ -720,8 +735,12 @@ def plot_factors_matrixplot(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every sample (cell) if it is provided
+    if groups_df is None and group_label is None:
+        group_label = "group"
+
     if groups_df is None:
-        groups_df = model.get_samples().set_index("sample")
+        groups_df = self.samples_metadata.loc[:,[group_label]]
+
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
     # Add group information for samples (cells)
@@ -753,6 +772,7 @@ def plot_factors_umap(
     factors: Optional[Union[int, List[int]]] = None,
     groups=None,
     groups_df=None,
+    group_label: Optional[str] = None,
     color=None,
     linewidth=0,
     size=5,
@@ -778,6 +798,8 @@ def plot_factors_umap(
         Subset of groups to consider
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided
     linewidth : optional
@@ -811,8 +833,11 @@ def plot_factors_umap(
     x, y, *_ = embedding.columns
 
     # Assign a group to every sample (cell) if it is provided
+    if groups_df is None and group_label is None:
+        group_label = "group"
+
     if groups_df is None:
-        groups_df = model.get_samples().set_index("sample")
+        groups_df = self.samples_metadata.loc[:,[group_label]]
 
     embedding = embedding.rename_axis("sample").reset_index()
     embedding = embedding.set_index("sample").join(groups_df).reset_index()
@@ -856,6 +881,7 @@ def plot_r2(
     model: mofa_model,
     factors: Union[int, List[int], str, List[str]] = None,
     groups_df: pd.DataFrame = None,
+    group_label: str = None,
     view=0,
     group=None,
     cmap="Blues",
@@ -874,12 +900,14 @@ def plot_r2(
         Make a plot for a certain view (first view by default)
     group : optional
         Make a plot for a certain group (None by default to plot all groups)
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
     cmap : optional
         The colourmap for the heatmap (default is 'Blues' with darker colour for higher R2)
     """
-    r2 = model.get_r2(factors=factors, groups_df=groups_df)
+    r2 = model.get_r2(factors=factors, group_label=group_label, groups_df=groups_df)
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
@@ -909,6 +937,7 @@ def plot_r2_pvalues(
     factors: Union[int, List[int], str, List[str]] = None,
     n_iter: int = 100,
     groups_df: pd.DataFrame = None,
+    group_label: str = None,
     view=0,
     fdr: bool = True,
     cmap="binary_r",
@@ -927,6 +956,8 @@ def plot_r2_pvalues(
         Make a plot for a cetrain view (first view by default)
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     fdr : optional bool
         If plot corrected PValues (FDR)
     cmap : optional
@@ -935,6 +966,7 @@ def plot_r2_pvalues(
     r2 = model.get_r2_null(
         factors=factors,
         groups_df=groups_df,
+        group_label=group_label,
         n_iter=n_iter,
         return_pvalues=True,
         fdr=fdr,
@@ -967,6 +999,7 @@ def plot_r2_barplot(
     factors: Union[int, List[int], str, List[str]] = None,
     view=0,
     groups_df: pd.DataFrame = None,
+    group_label: str = None,
     x="Factor",
     y="R2",
     groupby="Group",
@@ -986,6 +1019,8 @@ def plot_r2_barplot(
         Make a plot for a cetrain view (first view by default)
     groups_df : optional pd.DataFrame
         Data frame with samples (cells) as index and first column as group assignment
+    group_label : optional
+        Sample (cell) metadata column to be used as group assignment
     x : optional
         Value to plot along the x axis (default is Factor)
     y : optional
@@ -995,7 +1030,7 @@ def plot_r2_barplot(
     xticklabels_size : optional
         Font size for group labels (default is 10)
     """
-    r2 = model.get_r2(factors=factors, groups_df=groups_df)
+    r2 = model.get_r2(factors=factors, groups_df=groups_df, group_label=group_label)
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view

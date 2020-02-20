@@ -29,8 +29,6 @@ class mofa_model:
             m: np.array(self.model["features"][m]).astype("str")
             for m in self.model["features"]
         }
-        # Alias samples as cells
-        self.cells = self.samples
 
         self.groups = list(self.model["samples"].keys())
         self.views = list(self.model["features"].keys())
@@ -51,6 +49,44 @@ class mofa_model:
 
         # TODO: Update according to the latest API
         self.training_opts = {"maxiter": self.model["training_opts"][0]}
+
+        self.samples_metadata = pd.DataFrame(
+            [
+                [cell, group]
+                for group, cell_list in self.cells.items()
+                for cell in cell_list
+            ],
+            columns=["sample", "group"],
+        ).set_index("sample").rename_axis(None)
+        self.features_metadata = pd.DataFrame(
+            [
+                [feature, view]
+                for view, feature_list in self.features.items()
+                for feature in feature_list
+            ],
+            columns=["feature", "view"],
+        ).set_index("feature").rename_axis(None)
+
+    # Alias samples as cells
+    @property
+    def cells(self):
+        return self.samples
+
+    @property
+    def cells_metadata(self):
+        return self.samples_metadata
+
+    @cells_metadata.setter
+    def cells_metadata(self, metadata):
+        self.samples_metadata = metadata
+    
+    @property
+    def metadata(self):
+        return self.samples_metadata
+
+    @metadata.setter
+    def metadata(self, metadata):
+        self.samples_metadata = metadata
 
     def close(self):
         """Close the connection to the HDF5 file"""
@@ -290,10 +326,14 @@ class mofa_model:
         return (findices, factors)
 
     def get_factor_r2(
-        self, factor_index: int, groups_df: Optional[pd.DataFrame] = None
+        self, factor_index: int, group_label: Optional[str] = None, groups_df: Optional[pd.DataFrame] = None
     ) -> pd.DataFrame:
+        if groups_df is not None and group_label is not None:
+            print("Please specify either group_label or groups_df but not both")
+            sys.exit(1)
+
         r2_df = pd.DataFrame()
-        if groups_df is None:
+        if groups_df is None and (group_label is None or group_label == "group"):
             for view in self.views:
                 for group in self.groups:
                     crossprod = np.array(
@@ -316,7 +356,9 @@ class mofa_model:
         # Z matrix has to be merged and then split
         # according to the new grouping of samples
         else:
-            custom_groups = groups_df.iloc[:, 0].unique()
+            custom_groups = groups_df.iloc[:, 0].unique() if group_label is None else self.samples_metadata[group_label].unique()
+            if groups_df is None:
+                groups_df = self.samples_metadata.loc[:,[group_label]]
 
             z = np.concatenate(
                 [self.expectations["Z"][group][:, :] for group in self.groups], axis=1
@@ -361,17 +403,19 @@ class mofa_model:
         self,
         factors: Union[int, List[int], str, List[str]] = None,
         groups_df: Optional[pd.DataFrame] = None,
+        group_label: Optional[str] = None
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2(fi, groups_df=groups_df))
+            r2 = r2.append(self.get_factor_r2(fi, group_label=group_label, groups_df=groups_df))
         return r2
 
     def get_factor_r2_null(
         self,
         factor_index: int,
         groups_df: Optional[pd.DataFrame],
+        group_label: Optional[str],
         n_iter=100,
         return_full=False,
         return_true=False,
@@ -380,8 +424,11 @@ class mofa_model:
     ) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
+        if groups_df is None and group_label is None:
+            group_label = "group"
+
         if groups_df is None:
-            groups_df = self.get_samples().set_index("cell")
+            groups_df = self.samples_metadata.loc[:,[group_label]]
 
         custom_groups = groups_df.iloc[:, 0].unique()
 
@@ -463,6 +510,7 @@ class mofa_model:
         factors: Union[int, List[int], str, List[str]] = None,
         n_iter: int = 100,
         groups_df: Optional[pd.DataFrame] = None,
+        group_label: Optional[str] = None,
         return_full=False,
         return_pvalues=True,
         fdr=True,
@@ -474,6 +522,7 @@ class mofa_model:
                 self.get_factor_r2_null(
                     fi,
                     groups_df=groups_df,
+                    group_label=group_label,
                     n_iter=n_iter,
                     return_full=return_full,
                     return_pvalues=return_pvalues,
