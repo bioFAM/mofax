@@ -561,7 +561,7 @@ def plot_factors_scatter(
         group_label = "group"
 
     if groups_df is None:
-        groups_df = self.samples_metadata.loc[:,[group_label]]
+        groups_df = model.samples_metadata.loc[:,[group_label]]
 
     z = z.rename_axis("sample").reset_index()
     z = z.set_index("sample").join(groups_df).reset_index()
@@ -683,7 +683,7 @@ def plot_factors(
         group_label = "group"
 
     if groups_df is None:
-        groups_df = self.samples_metadata.loc[:,[group_label]]
+        groups_df = model.samples_metadata.loc[:,[group_label]]
 
     # Add group information for samples (cells)
     z = z.set_index("sample").join(groups_df).reset_index()
@@ -739,7 +739,7 @@ def plot_factors_matrixplot(
         group_label = "group"
 
     if groups_df is None:
-        groups_df = self.samples_metadata.loc[:,[group_label]]
+        groups_df = model.samples_metadata.loc[:,[group_label]]
 
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
@@ -837,7 +837,7 @@ def plot_factors_umap(
         group_label = "group"
 
     if groups_df is None:
-        groups_df = self.samples_metadata.loc[:,[group_label]]
+        groups_df = model.samples_metadata.loc[:,[group_label]]
 
     embedding = embedding.rename_axis("sample").reset_index()
     embedding = embedding.set_index("sample").join(groups_df).reset_index()
