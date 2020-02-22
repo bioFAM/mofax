@@ -1,6 +1,6 @@
 from .core import mofa_model
 
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Iterable
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
