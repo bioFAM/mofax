@@ -300,6 +300,9 @@ def plot_weights_heatmap(
 
     col_colors = features_col.loc[features, :] if features_col is not None else None
 
+    if len(factors) < 2:
+        cluster_factors = False
+
     cg = sns.clustermap(
         w,
         cmap=cmap,
