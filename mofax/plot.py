@@ -1,5 +1,6 @@
 from .core import mofa_model
 
+import sys
 from typing import Union, Optional, List, Iterable
 import numpy as np
 import pandas as pd
@@ -227,6 +228,8 @@ def plot_weights_heatmap(
     n_features: int = None,
     w_threshold: float = None,
     w_abs: bool = False,
+    only_positive: bool = False,
+    only_negative: bool = False,
     features_col: pd.DataFrame = None,
     cmap=None,
     xticklabels_size=10,
@@ -251,7 +254,11 @@ def plot_weights_heatmap(
     w_threshold : optional
         Absolute loading threshold for a feature to plot (no threshold by default)
     w_abs : optional
-        If plot absolute loadings values
+        If to plot absolute loadings values
+    only_positive : optional
+        If to plot only positive weights
+    only_negative : optional
+        If to plot only negative weights
     features_col : optional
         Pandas data frame with index by feature name with the first column 
         containing the colour for every feature
@@ -283,6 +290,14 @@ def plot_weights_heatmap(
     wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
     wm = wm.assign(value_abs=lambda x: x.value.abs())
     wm["factor"] = wm["factor"].astype("category")
+
+    if only_positive and only_negative:
+        print("Please specify either only_positive or only_negative")
+        sys.exit(1)
+    elif only_positive:
+        wm = wm[wm.value > 0]
+    elif only_negative:
+        wm = wm[wm.value < 0]
 
     if n_features is None and w_threshold is not None:
         features = wm[wm.value_abs >= w_threshold].feature.unique()
