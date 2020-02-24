@@ -51,7 +51,7 @@ class mofa_model:
         # TODO: Update according to the latest API
         self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
-        self.samples_metadata = pd.DataFrame(
+        self._samples_metadata = pd.DataFrame(
             [
                 [cell, group]
                 for group, cell_list in self.cells.items()
@@ -72,6 +72,16 @@ class mofa_model:
     @property
     def cells(self):
         return self.samples
+
+    @property
+    def samples_metadata(self):
+        return self._samples_metadata
+
+    @samples_metadata.setter
+    def samples_metadata(self, metadata):
+        if len(metadata) != self.shape[0]:
+            raise ValueError(f"Length of provided metadata {len(metadata)} does not match the length {self.shape[0]} of the data.")
+        self._samples_metadata = metadata
 
     @property
     def cells_metadata(self):
