@@ -269,7 +269,9 @@ class mofa_model:
 
         # Deduce the view from the feature name
         fs = self.get_features()
-        f_view = fs.iloc[np.where(fs.feature.isin(features))[0], :].view.unique()
+        f_i = np.where(fs.feature.isin(features))[0]
+        assert len(f_i) > 0, "Requested features are not found"
+        f_view = fs.iloc[f_i, :].view.unique()
         assert len(f_view) == 1, "All the features should be from one view"
         f_view = f_view[0]
 
