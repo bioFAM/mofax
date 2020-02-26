@@ -211,7 +211,8 @@ class mofa_model:
         self,
         views: Union[str, int, List[str], List[int]] = None,
         factors: Union[int, List[int]] = None,
-        df=False,
+        df: bool = False,
+        scaled_values: bool = False,
         absolute_values: bool = False,
     ):
         """
@@ -225,6 +226,8 @@ class mofa_model:
             Indices of factors to use
         df : optional
             Boolean value if to return W matrix as a DataFrame
+        scaled_values : optional
+            If return values scaled to zero mean and unit variance (per gene)
         absolute_values : optional
             If return absolute values for weights
         """
@@ -233,12 +236,14 @@ class mofa_model:
         w = np.concatenate(
             tuple(np.array(self.weights[view]).T[:, findices] for view in views)
         )
+        if scaled_values:
+            w = (w - w.mean(axis=0)) / w.std(axis=0)
+        if absolute_values:
+            w = np.absolute(w)
         if df:
             w = pd.DataFrame(w)
             w.columns = factors
             w.index = np.concatenate(tuple(self.features[m] for m in views))
-        if absolute_values:
-            w = np.absolute(w)
         return w
 
     def get_data(
