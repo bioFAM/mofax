@@ -183,6 +183,8 @@ class mofa_model:
         groups: Union[str, int, List[str], List[int]] = None,
         factors: Union[int, List[int]] = None,
         df=False,
+        scaled_values: bool = False,
+        absolute_values: bool = False,
     ):
         """
         Get the matrix with factors as a NumPy array or as a DataFrame (df=True).
@@ -195,12 +197,20 @@ class mofa_model:
             Indices of factors to consider
         df : optional
             Boolean value if to return Z matrix as a DataFrame
+        scaled_values : optional
+            If return values scaled to zero mean and unit variance (per sample or cell)
+        absolute_values : optional
+            If return absolute values for factors
         """
         groups = self.__check_groups(groups)
         findices, factors = self.__check_factors(factors)
         z = np.concatenate(
             tuple(np.array(self.factors[group]).T[:, findices] for group in groups)
         )
+        if scaled_values:
+            z = (z - z.mean(axis=0)) / z.std(axis=0)
+        if absolute_values:
+            z = np.absolute(z)
         if df:
             z = pd.DataFrame(z)
             z.columns = factors
