@@ -354,16 +354,19 @@ class mofa_model:
         return (findices, factors)
 
     def get_factor_r2(
-        self, factor_index: int, group_label: Optional[str] = None, groups_df: Optional[pd.DataFrame] = None
+        self, factor_index: int, groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        group_label: Optional[str] = None, groups_df: Optional[pd.DataFrame] = None
     ) -> pd.DataFrame:
         if groups_df is not None and group_label is not None:
             print("Please specify either group_label or groups_df but not both")
             sys.exit(1)
 
+        groups = self.__check_groups(groups)
+
         r2_df = pd.DataFrame()
         if groups_df is None and (group_label is None or group_label == "group"):
             for view in self.views:
-                for group in self.groups:
+                for group in groups:
                     crossprod = np.array(
                         self.expectations["Z"][group][[factor_index], :]
                     ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
@@ -389,7 +392,7 @@ class mofa_model:
                 groups_df = self.samples_metadata.loc[:,[group_label]]
 
             z = np.concatenate(
-                [self.expectations["Z"][group][:, :] for group in self.groups], axis=1
+                [self.expectations["Z"][group][:, :] for group in groups], axis=1
             )
 
             z_custom = dict()
@@ -400,7 +403,7 @@ class mofa_model:
             for view in self.views:
 
                 y_view = np.concatenate(
-                    [self.data[view][group][:, :] for group in self.groups], axis=0
+                    [self.data[view][group][:, :] for group in groups], axis=0
                 )
 
                 data_view = dict()
@@ -429,14 +432,15 @@ class mofa_model:
 
     def get_r2(
         self,
-        factors: Union[int, List[int], str, List[str]] = None,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
         groups_df: Optional[pd.DataFrame] = None,
         group_label: Optional[str] = None
     ) -> pd.DataFrame:
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
         for fi in findices:
-            r2 = r2.append(self.get_factor_r2(fi, group_label=group_label, groups_df=groups_df))
+            r2 = r2.append(self.get_factor_r2(fi, groups=groups, group_label=group_label, groups_df=groups_df))
         return r2
 
     def get_factor_r2_null(

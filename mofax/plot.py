@@ -986,7 +986,7 @@ def plot_r2(
     groups_df: pd.DataFrame = None,
     group_label: str = None,
     view=0,
-    group=None,
+    groups=None,
     cmap="Blues",
     **kwargs,
 ):
@@ -1001,8 +1001,8 @@ def plot_r2(
         Index of a factor (or indices of factors) to use (all factors by default)
     view : optional
         Make a plot for a certain view (first view by default)
-    group : optional
-        Make a plot for a certain group (None by default to plot all groups)
+    groups : optional
+        Make a plot for certain groups (None by default to plot all groups)
     group_label : optional
         Sample (cell) metadata column to be used as group assignment
     groups_df : optional pd.DataFrame
@@ -1010,15 +1010,11 @@ def plot_r2(
     cmap : optional
         The colourmap for the heatmap (default is 'Blues' with darker colour for higher R2)
     """
-    r2 = model.get_r2(factors=factors, group_label=group_label, groups_df=groups_df)
+    r2 = model.get_r2(factors=factors, groups=groups, group_label=group_label, groups_df=groups_df)
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
         r2 = r2[r2["View"] == view]
-    # Select a certain group if necessary
-    if group is not None:
-        group = model.groups[group] if isinstance(group, int) else group
-        r2 = r2[r2["Group"] == group]
     r2_df = r2.sort_values("R2").pivot(index="Factor", columns="Group", values="R2")
 
     # Sort by factor index
@@ -1107,6 +1103,7 @@ def plot_r2_barplot(
     y="R2",
     groupby="Group",
     xticklabels_size=10,
+    stacked=False,
     **kwargs,
 ):
     """
@@ -1132,6 +1129,8 @@ def plot_r2_barplot(
         Column to group bars for R2 values by (default is Group)
     xticklabels_size : optional
         Font size for group labels (default is 10)
+    stacked : optional
+        Plot a stacked barplot instead of a grouped barplot
     """
     r2 = model.get_r2(factors=factors, groups_df=groups_df, group_label=group_label)
     # Select a certain view if necessary
@@ -1147,11 +1146,17 @@ def plot_r2_barplot(
     )
     r2_df = r2_df.sort_values("Factor")
 
-    g = sns.barplot(
-        data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, **kwargs
-    )
+    if stacked:
+        g = r2_df.pivot(index='Factor', columns='Group', values='R2').plot(kind='bar', stacked=True, **kwargs)
+        plt.ylabel("R2")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    else:
+        # Grouped barplot
+        g = sns.barplot(
+            data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, **kwargs
+        )
 
-    g.set_xticklabels(g.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
+        g.set_xticklabels(g.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
 
     return g
 
