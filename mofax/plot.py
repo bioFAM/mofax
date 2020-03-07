@@ -1103,6 +1103,7 @@ def plot_r2_barplot(
     y="R2",
     groupby="Group",
     xticklabels_size=10,
+    linewidth=0,
     stacked=False,
     **kwargs,
 ):
@@ -1129,6 +1130,8 @@ def plot_r2_barplot(
         Column to group bars for R2 values by (default is Group)
     xticklabels_size : optional
         Font size for group labels (default is 10)
+    linewidth : optional
+        Linewidth (0 by default)
     stacked : optional
         Plot a stacked barplot instead of a grouped barplot
     """
@@ -1147,13 +1150,13 @@ def plot_r2_barplot(
     r2_df = r2_df.sort_values("Factor")
 
     if stacked:
-        g = r2_df.pivot(index='Factor', columns='Group', values='R2').plot(kind='bar', stacked=True, **kwargs)
+        g = r2_df.pivot(index='Factor', columns='Group', values='R2').plot(kind='bar', stacked=True, linewidth=linewidth, **kwargs)
         plt.ylabel("R2")
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     else:
         # Grouped barplot
         g = sns.barplot(
-            data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, **kwargs
+            data=r2_df.sort_index(level=0, ascending=False), x=x, y=y, hue=groupby, linewidth=linewidth, **kwargs
         )
 
         g.set_xticklabels(g.xaxis.get_ticklabels(), rotation=90, size=xticklabels_size)
