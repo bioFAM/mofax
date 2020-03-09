@@ -43,6 +43,8 @@ class mofa_model:
             sum(self.data[view][self.groups[0]].shape[1] for view in self.views),
         )
         self.nfactors = self.model["expectations"]["Z"][self.groups[0]].shape[0]
+        self.nviews = len(self.views)
+        self.ngroups = len(self.groups)
 
         self.likelihoods = (
             np.array(self.model["model_options"]["likelihoods"]).astype("str").tolist()
@@ -354,7 +356,9 @@ class mofa_model:
         return (findices, factors)
 
     def get_factor_r2(
-        self, factor_index: int, groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        self, factor_index: int, 
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None,
         group_label: Optional[str] = None, groups_df: Optional[pd.DataFrame] = None
     ) -> pd.DataFrame:
         if groups_df is not None and group_label is not None:
@@ -362,10 +366,11 @@ class mofa_model:
             sys.exit(1)
 
         groups = self.__check_groups(groups)
+        views = self.__check_groups(views)
 
         r2_df = pd.DataFrame()
         if groups_df is None and (group_label is None or group_label == "group"):
-            for view in self.views:
+            for view in views:
                 for group in groups:
                     crossprod = np.array(
                         self.expectations["Z"][group][[factor_index], :]
@@ -400,7 +405,7 @@ class mofa_model:
                 z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
             del z
 
-            for view in self.views:
+            for view in views:
 
                 y_view = np.concatenate(
                     [self.data[view][group][:, :] for group in groups], axis=0
@@ -434,13 +439,46 @@ class mofa_model:
         self,
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None,
         groups_df: Optional[pd.DataFrame] = None,
         group_label: Optional[str] = None
     ) -> pd.DataFrame:
+        """
+        Get variance explained (R2) per factor, view, and group.
+
+        factors : optional
+            List of factors to consider (all by default)
+        groups : optional
+            List of groups to consider (all by default)
+        views : optional
+            List of views to consider (all by default)
+        group_label : optional
+            Sample (cell) metadata column to be used as group assignment
+        groups_df : optional pd.DataFrame
+            Data frame with samples (cells) as index and first column as group assignment
+        """
         findices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
-        for fi in findices:
-            r2 = r2.append(self.get_factor_r2(fi, groups=groups, group_label=group_label, groups_df=groups_df))
+        if "variance_explained" in self.model.keys() and group_label is None and groups_df is None:
+            # Load from file if pre-computed
+            r2 = pd.concat([
+             pd.DataFrame(r2, index=self.views, columns=[f"Factor{i+1}" for i in range(self.nfactors)])\
+                .rename_axis("View").reset_index().melt(id_vars=["View"], var_name="Factor", value_name="R2")\
+                .assign(Group=group)\
+                .loc[:,["Factor", "View", "Group", "R2"]]
+                  for group, r2 in self.model["variance_explained"]["r2_per_factor"].items()])
+            if groups is not None:
+                groups = self.__check_groups(groups)
+                r2 = r2[r2.Group.isin(groups)]
+            if views is not None:
+                view = self.__check_views(views)
+                r2 = r2[r2.View.isin(views)]
+        else:        
+            if groups_df is not None and group_label is not None:
+                print("Please specify either group_label or groups_df but not both")
+                sys.exit(1)
+            for fi in findices:
+                r2 = r2.append(self.get_factor_r2(fi, groups=groups, views=views, group_label=group_label, groups_df=groups_df))
         return r2
 
     def get_factor_r2_null(
