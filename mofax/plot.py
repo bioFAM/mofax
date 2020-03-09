@@ -1031,6 +1031,7 @@ def plot_r2(
     assert len(split_by) == 1, "x and y values should be different and be one of Group, View, or Factor"
     split_by = split_by[0]
 
+    split_by_items = r2[split_by].unique()
     fig, axes = plt.subplots(ncols=len(split_by_items), sharex=True, sharey=True)
     cbar_ax = fig.add_axes([.91, .3, .03, .4])
     if len(split_by_items) == 1:
