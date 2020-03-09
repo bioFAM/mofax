@@ -1033,6 +1033,8 @@ def plot_r2(
 
     fig, axes = plt.subplots(ncols=len(split_by_items), sharex=True, sharey=True)
     cbar_ax = fig.add_axes([.91, .3, .03, .4])
+    if len(split_by_items) == 1:
+        axes = [axes]
 
     for i, item in enumerate(split_by_items):
         r2_sub = r2[r2[split_by] == item]
@@ -1054,7 +1056,7 @@ def plot_r2(
             )
             r2_df = r2_df[r2_df.columns.sort_values()]
         
-        g = sns.heatmap(r2_df, ax=axes[i], cmap=cmap, 
+        g = sns.heatmap(r2_df.sort_index(level=0, ascending=False), ax=axes[i], cmap=cmap, 
                         vmin=vmin, vmax=vmax,
                         cbar=i==0, cbar_ax=None if i else cbar_ax, **kwargs)
         
