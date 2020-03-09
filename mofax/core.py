@@ -366,7 +366,7 @@ class mofa_model:
             sys.exit(1)
 
         groups = self.__check_groups(groups)
-        views = self.__check_groups(views)
+        views = self.__check_views(views)
 
         r2_df = pd.DataFrame()
         if groups_df is None and (group_label is None or group_label == "group"):
