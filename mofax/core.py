@@ -701,3 +701,15 @@ def padjust_fdr(xs):
     fdr = xs * len(xs) / ranked_p_values
     fdr[fdr > 1] = 1
     return fdr
+
+
+def padjust_fdr_2d(mx):
+    """
+    Adjust p-values in a matrix using the BH procedure
+    """
+    from scipy.stats import rankdata
+
+    ranked_p_values = rankdata(mx).reshape((-1,mx.shape[1]))
+    fdr = mx * mx.shape[0] * mx.shape[1] / ranked_p_values
+    fdr[fdr > 1] = 1
+    return fdr

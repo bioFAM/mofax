@@ -1,8 +1,11 @@
-from .core import mofa_model, umap
+from .core import mofa_model, umap, padjust_fdr_2d
 
 import sys
+from warnings import warn
 from typing import Union, Optional, List, Iterable
+
 import numpy as np
+from scipy.stats import pearsonr
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -979,9 +982,9 @@ def plot_factors_correlation(
     factors: Optional[Union[int, List[int]]] = None,
     groups=None,
     covariates=None,
+    pvalues=False,
     linewidths=0,
     diag=False,
-    full=True,
     cmap=None,
     square=True,
     **kwargs,
@@ -999,31 +1002,48 @@ def plot_factors_correlation(
         Subset of groups to consider
     covarites : optional
         A vector, a matrix, or a data frame with covariates (one per column)
+    pvalues
+        Plot BH-adjusted p-values instead of correlation coefficient
     linewidths : optional
         Heatmap linewidths argument (default is 0)
     diag : optional
         If to only plot lower triangle of the correlation matrix (False by default)
-    full : optional
-        If covariates are provided, also plot inter-factor and inter-covariates correlation coefficients (True by default)
-    square : optional
-        Heatmap square argument (True by default)
     cmap : optional
         Heatmap cmap argument
+    square : optional
+        Heatmap square argument (True by default)
     """
 
     z = model.get_factors(factors=factors, groups=groups)
-    if covariates is not None:
-        # Transform a vector to a matrix
-        if len(covariates.shape) == 1:
-            covariates = pd.DataFrame(covariates)
-        corr = np.corrcoef(z.T, covariates.T)
-    else:
-        corr = np.corrcoef(z.T)
+    
+    # pearsonr returns (r, pvalue)
+    value_index = 1 if pvalues else 0
 
     if covariates is not None:
-        if not full:
-            n_cov = covariates.shape[1]
-            corr = corr[0:-n_cov,-n_cov:]
+        n_cov = covariates.shape[1]
+        # Transform a vector to a data frane
+        # Also ransform matrices and ndarrays to a data frame
+        if len(covariates.shape) == 1 or not isinstance(covariates, pd.DataFrame):
+            covariates = pd.DataFrame(covariates)
+        corr = np.ndarray(shape=(z.shape[1], n_cov))
+        for i in range(corr.shape[0]):
+            for j in range(corr.shape[1]):
+                corr[i,j] = pearsonr(z[:,i], covariates.iloc[:,j])[value_index]
+    else:
+        # Inter-factor correlations
+        corr = np.ndarray(shape=(z.shape[1], z.shape[1]))
+        for i in range(corr.shape[0]):
+            for j in range(corr.shape[1]):
+                corr[i,j] = pearsonr(z[:,i], z.iloc[:,j])[value_index]
+
+    if pvalues:
+        corr = padjust_fdr_2d(corr)
+
+        corr = -np.log10(corr)
+
+        if np.sum(np.isinf(corr)) > 0:
+            warn("Some p-values are 0, these values will be capped.")
+            corr[np.isinf(corr)] = np.ceil(corr[~np.isinf(corr)].max() * 10)
 
     mask = None
     if diag:
@@ -1035,7 +1055,7 @@ def plot_factors_correlation(
 
     if cmap is None:
         # Generate a custom diverging colormap
-        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+        cmap = "Reds" if pvalues else sns.diverging_palette(220, 10, as_cmap=True)
 
     # Generate labels for the heatmap
     if factors is None:
@@ -1046,17 +1066,21 @@ def plot_factors_correlation(
             cnames = covariates.columns.values
         else:
             cnames = [f"Covar{ci+1}" for ci in covariates.shape[1]]
-        xticklabels = cnames if not full else np.concatenate((fnames, cnames))
-        yticklabels = fnames if not full else np.concatenate((fnames, cnames))
+        xticklabels = cnames
+        yticklabels = fnames
     else:
         xticklabels = fnames
         yticklabels = fnames
 
+    center = 0 if not pvalues else None
+    cbar_kws = {"shrink": .5}
+    cbar_kws["label"] = "Correlation coefficient" if not pvalues else "-log10(adjusted p-value)"    
+
     # Draw the heatmap with the mask and correct aspect ratio
-    g = sns.heatmap(corr, cmap=cmap, mask=mask, center=0,
+    g = sns.heatmap(corr, cmap=cmap, mask=mask, center=center,
                     square=True, linewidths=.5,
                     xticklabels=xticklabels, yticklabels=yticklabels,
-                    cbar_kws={"shrink": .5}, **kwargs)
+                    cbar_kws=cbar_kws, **kwargs)
 
     g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
@@ -1066,6 +1090,7 @@ def plot_factors_correlation(
 def plot_factors_covariates_correlation(
     model: mofa_model,
     covariates: Union[np.ndarray, np.matrix, pd.DataFrame],
+    pvalues: bool = False,
     **kwargs,
 ):
     """
@@ -1077,10 +1102,12 @@ def plot_factors_covariates_correlation(
         Factor model
     covarites
         A vector, a matrix, or a data frame with covariates (one per column)
+    pvalues
+        Plot BH-adjusted p-values instead of correlation coefficient
     **kwargs
         Other arguments to plot_factors_correlation
     """
-    return plot_factors_correlation(model, covariates=covariates, full=False, **kwargs)
+    return plot_factors_correlation(model, covariates=covariates, pvalues=pvalues, square=False, **kwargs)
 
 
 
