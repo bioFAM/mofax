@@ -517,6 +517,95 @@ def plot_weights_scatter(
     return plot
 
 
+def plot_weights_correlation(
+    model: mofa_model,
+    factors: Optional[Union[int, List[int]]] = None,
+    views=None,
+    covariates=None,
+    linewidths=0,
+    diag=False,
+    full=True,
+    cmap=None,
+    square=True,
+    **kwargs,
+):
+    """
+    Plot correlation of weights and, if provided, covariates
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
+    groups : optional
+        Subset of groups to consider
+    covarites : optional
+        A vector, a matrix, or a data frame with covariates (one per column)
+    linewidths : optional
+        Heatmap linewidths argument (default is 0)
+    diag : optional
+        If to only plot lower triangle of the correlation matrix (False by default)
+    full : optional
+        If covariates are provided, also plot inter-factor and inter-covariates correlation coefficients (True by default)
+    square : optional
+        Heatmap square argument (True by default)
+    cmap : optional
+        Heatmap cmap argument
+    """
+
+    w = model.get_weights(factors=factors, views=views)
+    if covariates is not None:
+        # Transform a vector to a matrix
+        if len(covariates.shape) == 1:
+            covariates = pd.DataFrame(covariates)
+        corr = np.corrcoef(w.T, covariates.T)
+    else:
+        corr = np.corrcoef(w.T)
+
+    if covariates is not None:
+        if not full:
+            n_cov = covariates.shape[1]
+            corr = corr[0:-n_cov,-n_cov:]
+
+    mask = None
+    if diag:
+        # Generate a mask for the upper triangle
+        mask = np.triu(np.ones_like(corr, dtype=np.bool))
+
+    # Set up the matplotlib figure
+    f, ax = plt.subplots(figsize=(11, 9))
+
+    if cmap is None:
+        # Generate a custom diverging colormap
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    # Generate labels for the heatmap
+    if factors is None:
+        factors = range(w.shape[1])
+    fnames = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]
+    if covariates is not None:
+        if isinstance(covariates, pd.DataFrame):
+            cnames = covariates.columns.values
+        else:
+            cnames = [f"Covar{ci+1}" for ci in covariates.shape[1]]
+        xticklabels = cnames if not full else np.concatenate((fnames, cnames))
+        yticklabels = fnames if not full else np.concatenate((fnames, cnames))
+    else:
+        xticklabels = fnames
+        yticklabels = fnames
+
+    # Draw the heatmap with the mask and correct aspect ratio
+    g = sns.heatmap(corr, cmap=cmap, mask=mask, center=0,
+                    square=True, linewidths=.5,
+                    xticklabels=xticklabels, yticklabels=yticklabels,
+                    cbar_kws={"shrink": .5}, **kwargs)
+
+    g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
+
+    return g
+
+
 ### FACTOR VALUES ###
 
 
@@ -898,14 +987,12 @@ def plot_factors_correlation(
     **kwargs,
 ):
     """
-    Plot UMAP on factor values
+    Plot correlation of factors and, if provided, covariates
 
     Parameters
     ----------
     model : mofa_model
         Factor model
-    embedding : optional pd.DataFrame
-        Output of UMAP embedding from mofax.umap (or any other embedding with samples (cells) as index)
     factors : optional
         Index of a factor (or indices of factors) to use (all factors by default)
     groups : optional
@@ -974,6 +1061,26 @@ def plot_factors_correlation(
     g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
     return g
+
+
+def plot_factors_covariates_correlation(
+    model: mofa_model,
+    covariates: Union[np.ndarray, np.matrix, pd.DataFrame],
+    **kwargs,
+):
+    """
+    Plot correlation of factors and covariates
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    covarites
+        A vector, a matrix, or a data frame with covariates (one per column)
+    **kwargs
+        Other arguments to plot_factors_correlation
+    """
+    return plot_factors_correlation(model, covariates=covariates, full=False, **kwargs)
 
 
 
