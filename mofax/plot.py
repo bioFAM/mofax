@@ -1034,7 +1034,7 @@ def plot_factors_correlation(
         corr = np.ndarray(shape=(z.shape[1], z.shape[1]))
         for i in range(corr.shape[0]):
             for j in range(corr.shape[1]):
-                corr[i,j] = pearsonr(z[:,i], z.iloc[:,j])[value_index]
+                corr[i,j] = pearsonr(z[:,i], z[:,j])[value_index]
 
     if pvalues:
         corr = padjust_fdr_2d(corr)
