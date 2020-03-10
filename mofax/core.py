@@ -56,7 +56,7 @@ class mofa_model:
         self._samples_metadata = pd.DataFrame(
             [
                 [cell, group]
-                for group, cell_list in self.cells.items()
+                for group, cell_list in self.samples.items()
                 for cell in cell_list
             ],
             columns=["sample", "group"],
