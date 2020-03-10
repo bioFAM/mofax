@@ -440,7 +440,7 @@ def plot_weights_dotplot(
         # Make the grid horizontal instead of vertical
         ax.xaxis.grid(False)
         ax.yaxis.grid(True)
-        ax.set_yticklabels(ax.yaxis.get_ticklabels(), size=yticklabels_size)
+        ax.tick_params(labelsize=yticklabels_size)
 
     sns.despine(left=True, bottom=True, offset=10, trim=True)
 
