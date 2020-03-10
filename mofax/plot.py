@@ -424,6 +424,7 @@ def plot_weights_dotplot(
         palette="ch:s=1,r=-.1",
         linewidth=1,
         edgecolor="w",
+        **kwargs
     )
 
     # Use the same x axis limits on all columns and add better labels
