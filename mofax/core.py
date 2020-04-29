@@ -319,8 +319,9 @@ class mofa_model:
         if not isinstance(variables, Iterable) or isinstance(variables, str):
             variables = [variables]
 
-        # Remove Nones
+        # Remove None values and duplicates
         variables = [i for i in variables if i is not None]
+        variables = list(set(variables))
 
         var_meta = list()
         var_features = list()
@@ -498,8 +499,6 @@ class mofa_model:
         groups_df : optional pd.DataFrame
             Data frame with samples (cells) as index and first column as group assignment
         """
-        findices, factors = self.__check_factors(factors)
-        r2 = pd.DataFrame()
         if "variance_explained" in self.model.keys() and group_label is None and groups_df is None:
             # Load from file if pre-computed
             r2 = pd.concat([
@@ -508,6 +507,9 @@ class mofa_model:
                 .assign(Group=group)\
                 .loc[:,["Factor", "View", "Group", "R2"]]
                   for group, r2 in self.model["variance_explained"]["r2_per_factor"].items()])
+            if factors is not None:
+                _, factors = self.__check_factors(factors)
+                r2 = r2[r2.Factor.isin(factors)]
             if groups is not None:
                 groups = self.__check_groups(groups)
                 r2 = r2[r2.Group.isin(groups)]
@@ -518,6 +520,8 @@ class mofa_model:
             if groups_df is not None and group_label is not None:
                 print("Please specify either group_label or groups_df but not both")
                 sys.exit(1)
+            r2 = pd.DataFrame()
+            findices, _ = self.__check_factors(factors)
             for fi in findices:
                 r2 = r2.append(self.get_factor_r2(fi, groups=groups, views=views, group_label=group_label, groups_df=groups_df))
         return r2
