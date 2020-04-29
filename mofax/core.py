@@ -305,6 +305,44 @@ class mofa_model:
             y.index = np.concatenate(tuple(self.samples[g] for g in groups))
         return y
 
+    def fetch_values(self, variables: Union[str, List[str]]):
+        """
+        Fetch metadata column, factors, or feature values.
+        Shorthand to get_data, get_factors, and metadata calls.
+
+        Parameters
+        ----------
+        features : str 
+            Features, metadata columns, or factors (FactorN) to fetch
+        """
+        # If a sole variable name is used, wrap it in a list
+        if not isinstance(variables, Iterable) or isinstance(variables, str):
+            variables = [variables]
+
+        var_meta = list()
+        var_features = list()
+        var_factors = list()
+
+        # Split all the variables into metadata and features
+        for i, var in enumerate(variables):
+            if var in self.metadata.columns:
+                var_meta.append(var)
+            elif var.capitalize().startswith("Factor"):
+                # Unify factor naming
+                variables[i] = var.capitalize()
+                var_factors.append(var.capitalize())
+            else:
+                var_features.append(var)
+
+
+        var_list = list()
+        if len(var_meta) > 0: var_list.append(self.metadata[var_meta])
+        if len(var_features) > 0: var_list.append(self.get_data(var_features, df=True))
+        if len(var_factors) > 0: var_list.append(self.get_factors(factors=var_factors, df=True))
+
+        # Return a DataFrame with columns ordered as requested
+        return pd.concat(var_list, axis=1)[variables]
+
     def __check_views(self, views):
         return self.__check_grouping(views, "views")
 
