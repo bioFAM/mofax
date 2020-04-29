@@ -319,6 +319,9 @@ class mofa_model:
         if not isinstance(variables, Iterable) or isinstance(variables, str):
             variables = [variables]
 
+        # Remove Nones
+        variables = [i for i in variables if i is not None]
+
         var_meta = list()
         var_features = list()
         var_factors = list()
