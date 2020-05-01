@@ -180,6 +180,73 @@ class mofa_model:
             columns=["view", "feature"],
         )
 
+    def get_top_features(
+        self,
+        factors: Union[int, List[int]] = None,
+        views: Union[str, int, List[str], List[int]] = None,
+        n_features: int = None,
+        clip_threshold: float = None,
+        scaled_values: bool = False,
+        absolute_values: bool = False,
+        only_positive: bool = False,
+        only_negative: bool = False
+    ):
+        """
+        Fetch a list of top feature names
+
+        Parameters
+        ----------
+        factors : optional
+            Factors to use (all factors in the model by default)
+        view : options
+            The view to get the loadings of the factor for (first view by default)
+        n_features : optional
+            Number of features for each factor by their absolute value (10 by default)
+        clip_threshold : optional
+            Absolute loading threshold to clip all values to (no threshold by default)
+        absolute_values : optional
+            If to fetch absolute loadings values
+        only_positive : optional
+            If to fetch only positive weights
+        only_negative : optional
+            If to fetch only negative weights
+        """
+        views = self.__check_views(views)
+        findices, factors = self.__check_factors(factors)
+        n_features_default = 10
+        
+        # Fetch weights for the relevant factors
+        w = (
+            self.get_weights(views=views, factors=factors, df=True, absolute_values=absolute_values)
+            .rename_axis("feature")
+            .reset_index()
+        )
+        wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
+        wm = wm.assign(value_abs=lambda x: x.value.abs())
+        wm["factor"] = wm["factor"].astype("category")
+
+        if only_positive and only_negative:
+            print("Please specify either only_positive or only_negative")
+            sys.exit(1)
+        elif only_positive:
+            wm = wm[wm.value > 0]
+        elif only_negative:
+            wm = wm[wm.value < 0]
+
+        if n_features is None and clip_threshold is not None:
+            features = wm[wm.value_abs >= clip_threshold].feature.unique()
+        else:
+            if n_features is None:
+                n_features = n_features_default
+            # Get a subset of features
+            wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+            if clip_threshold is None:
+                features = wm.head(n_features).feature.unique()
+            else:
+                features = wm[wm.value_abs >= clip_threshold].head(n_features).feature.unique()
+
+        return features
+
     def get_factors(
         self,
         groups: Union[str, int, List[str], List[int]] = None,
