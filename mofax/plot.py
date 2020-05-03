@@ -652,7 +652,8 @@ def plot_factors_scatter(
     group_label : optional
         Sample (cell) metadata column to be used as group assignment
     color : optional
-        Grouping variable by default, alternatively a feature name can be provided (when no kde/hist)
+        Grouping variable by default, alternatively a feature name can be provided (when no kde/hist).
+        Use palette argument to provide a colour map.
     linewidth : optional
         Linewidth argument for dots (default is 0)
     size : optional
