@@ -20,7 +20,7 @@ class mofa_model:
         self.filepath = filepath
         self.model = h5py.File(filepath, mode)
 
-        self.data = self.model["data"]
+        self.data = self.model["data"] if 'data' in self.model else None
 
         self.samples = {
             g: np.array(self.model["samples"][g]).astype("str")
@@ -38,20 +38,28 @@ class mofa_model:
         self.factors = self.model["expectations"]["Z"]
         self.weights = self.model["expectations"]["W"]
 
-        self.shape = (
-            sum(self.data[self.views[0]][group].shape[0] for group in self.groups),
-            sum(self.data[view][self.groups[0]].shape[1] for view in self.views),
-        )
+        if self.data is not None:
+            self.shape = (
+                sum(self.data[self.views[0]][group].shape[0] for group in self.groups),
+                sum(self.data[view][self.groups[0]].shape[1] for view in self.views),
+            )
+        else:
+            self.shape = (
+                sum(self.factors[group].shape[0] for group in self.groups),
+                sum(self.weights[view].shape[0] for view in self.views)
+            )
         self.nfactors = self.model["expectations"]["Z"][self.groups[0]].shape[0]
         self.nviews = len(self.views)
         self.ngroups = len(self.groups)
 
-        self.likelihoods = (
-            np.array(self.model["model_options"]["likelihoods"]).astype("str").tolist()
-        )
+        if "model_options" in self.model:
+            self.likelihoods = (
+                np.array(self.model["model_options"]["likelihoods"]).astype("str").tolist()
+            )
 
-        # TODO: Update according to the latest API
-        self.training_opts = {"maxiter": self.model["training_opts"][0]}
+        if "training_opts" in self.model:
+            # TODO: Update according to the latest API
+            self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
         self._samples_metadata = pd.DataFrame(
             [
