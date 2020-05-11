@@ -34,7 +34,7 @@ model.close()
 
 #### Model object
 
-Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings eliminating the need to traverse the HDF5 file manually.
+Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings (weights) eliminating the need to traverse the HDF5 file manually.
 
 #### Model methods
 
