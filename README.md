@@ -38,7 +38,7 @@ Model object is an instance of a `mofa_model` class that wraps around the HDF5 c
 
 #### Model methods
 
-Simple data structures (e.g. lists or dictionaries) are returned upon calling the properties of the mofa model, e.g. `model.shape`:
+Simple data structures (e.g. lists or dictionaries) are typically returned upon calling the properties of the mofa model, e.g. `model.shape`:
 
 ```python
 model.shape
@@ -46,8 +46,7 @@ model.shape
 #         cells^  ^features
 ```
 
-More complex structures are returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
-
+More complex structures are typically returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
 
 ```python
 model.get_cells().head()
@@ -59,6 +58,10 @@ model.get_cells().head()
 # 3	T_CD4	AATCCGTCACGAGACG-1
 # 4	T_CD4	ACACCGAGGAGGTTGA-1
 ```
+
+Use `model.metadata` to get the metadata table — it's a shorhand for `samples_metadata`, there's also `features_metadata` available. 
+
+To get expectations of W (weights) and Z (factors) matrices, use `get_weights()` and `get_factors()`, respectively. There's also a `df=True` option to get expectations as a Pandas data frame rather than a NumPy 2D array.
 
 #### Utility functions
 
