@@ -73,6 +73,9 @@ class mofa_model:
             )
             self._samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
             self._samples_metadata = self._samples_metadata.set_index("sample")
+            # Convert sample name and group name to strings (they are probably objects)
+            self._samples_metadata.index = self._samples_metadata.index.astype(str)
+            self._samples_metadata.group = self._samples_metadata.group.astype(str)
         else:
             self._samples_metadata = pd.DataFrame(
                 [
@@ -93,6 +96,9 @@ class mofa_model:
             )
             self.features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
             self.features_metadata = self.features_metadata.set_index("feature")
+            # Convert feature name and view name to strings (they are probably objects)
+            self.features_metadata.index = self.features_metadata.index.astype(str)
+            self.features_metadata.view = self.features_metadata.view.astype(str)
         else:
             self.features_metadata = pd.DataFrame(
                 [
