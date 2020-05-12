@@ -30,7 +30,7 @@ def plot_weights(
     **kwargs,
 ):
     """
-    Plot loadings for a specific factor
+    Plot weights (loadings) for a specific factor
 
     Parameters
     ----------
@@ -39,15 +39,15 @@ def plot_weights(
     factor : optional
         Factor to use (default is Factor1)
     view : options
-        The view to get the loadings of the factor for (first view by default)
+        The view to get the factors weights for (first view by default)
     n_features : optional
-        Number of features to label with most positive and most negative loadings
+        Number of features to label with most positive and most negative weights
     label_size : optional
         Font size of feature labels (default is 5)
     x_rank_offset : optional
         Offset the feature labels from the left/right side (by 10 points by default)
     x_rank_offset_neg : optional
-        Offset but for the negative loadings only (i.e. from the right side)
+        Offset but for the negative weights only (i.e. from the right side)
     y_repel_coef : optional
         Parameter to repel feature labels along the y axis (0.03 by default)
     attract_to_points : optional
@@ -132,7 +132,7 @@ def plot_weights(
 
     # Set plot axes labels
     factor_label = f"Factor{factor+1}" if isinstance(factor, int) else factor
-    ax.set(ylabel=f"{factor_label} loading", xlabel="Feature rank")
+    ax.set(ylabel=f"{factor_label} weight", xlabel="Feature rank")
 
     return ax
 
@@ -150,7 +150,7 @@ def plot_weights_scaled(
     **kwargs,
 ):
     """
-    Plot scaled loadings for 2 factors
+    Plot scaled weights (loadings) for 2 factors
 
     Parameters
     ----------
@@ -159,9 +159,9 @@ def plot_weights_scaled(
     factor : optional
         Factor to use (default is Factor1)
     view : options
-        The view to get the loadings of the factor for (first view by default)
+        The view to get the factors weights for (first view by default)
     n_features : optional
-        Number of features to label with most positive and most negative loadings
+        Number of features to label with most positive and most negative weights
     label_size : optional
         Font size of feature labels (default is 5)
     y_repel_coef : optional
@@ -219,7 +219,7 @@ def plot_weights_scaled(
     # Set plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
-    ax.set(xlabel=f"{x_factor_label} loading", ylabel=f"{y_factor_label} loading")
+    ax.set(xlabel=f"{x_factor_label} weight", ylabel=f"{y_factor_label} weight")
 
     return ax
 
@@ -242,7 +242,7 @@ def plot_weights_heatmap(
     **kwargs,
 ):
     """
-    Plot loadings for top features in a heatmap
+    Plot weights (loadings) for top features in a heatmap
 
     Parameters
     ----------
@@ -251,13 +251,13 @@ def plot_weights_heatmap(
     factors : optional
         Factors to use (all factors in the model by default)
     view : options
-        The view to get the loadings of the factor for (first view by default)
+        The view to get the factors weights for (first view by default)
     n_features : optional
         Number of features for each factor by their absolute value (10 by default)
     w_threshold : optional
-        Absolute loading threshold for a feature to plot (no threshold by default)
+        Absolute weight threshold for a feature to plot (no threshold by default)
     w_abs : optional
-        If to plot absolute loadings values
+        If to plot absolute weight values
     only_positive : optional
         If to plot only positive weights
     only_negative : optional
@@ -353,7 +353,7 @@ def plot_weights_dotplot(
     **kwargs,
 ):
     """
-    Plot loadings for top features as a dotplot
+    Plot weights (loadings) for top features as a dotplot
 
     Parameters
     ----------
@@ -362,13 +362,13 @@ def plot_weights_dotplot(
     factors : optional
         Factors to use (all factors in the model by default)
     view : options
-        The view to get the loadings of the factor for (first view by default)
+        The view to get the factors weights for (first view by default)
     n_features : optional
         Number of features for each factor by their absolute value (10 by default)
     w_threshold : optional
-        Absolute loading threshold for a feature to plot (no threshold by default)
+        Absolute weight threshold for a feature to plot (no threshold by default)
     w_abs : optional
-        If plot absolute loadings values
+        If plot absolute weight values
     col_wrap : optional
         Number of columns per row when plotting multiple factors
     yticklabels_size : optional
@@ -459,18 +459,18 @@ def plot_weights_scatter(
     **kwargs,
 ):
     """
-    Plot factor loadings for two factors
+    Plot weights (loadings) for two factors
 
     Parameters
     ----------
     model : mofa_model
         Factor model
     x : optional
-        Factor which loadings to plot along X axis (Factor1 by default)
+        Factor which weights to plot along X axis (Factor1 by default)
     y : optional
-        Factor which loadings to plot along Y axis (Factor2 by default)
+        Factor which weights to plot along Y axis (Factor2 by default)
     view : options
-        The view to get the loadings of the factor for (first view by default)
+        The view to get the factors weights for (first view by default)
     hist : optional
         Boolean value if to add marginal histograms to the scatterplot (jointplot)
     n_features : optional
@@ -1364,7 +1364,7 @@ def plot_projection(
     """
     Project new data onto the factor space of the model.
     
-    For the projection, a pseudo-inverse of the loadings matrix is calculated 
+    For the projection, a pseudo-inverse of the weights matrix is calculated 
     and its product with the provided data matrix is calculated.
     
     Parameters

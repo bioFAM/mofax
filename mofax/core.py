@@ -207,13 +207,13 @@ class mofa_model:
         factors : optional
             Factors to use (all factors in the model by default)
         view : options
-            The view to get the loadings of the factor for (first view by default)
+            The view to get the factor weights for (first view by default)
         n_features : optional
             Number of features for each factor by their absolute value (10 by default)
         clip_threshold : optional
-            Absolute loading threshold to clip all values to (no threshold by default)
+            Absolute weight threshold to clip all values to (no threshold by default)
         absolute_values : optional
-            If to fetch absolute loadings values
+            If to fetch absolute weight values
         only_positive : optional
             If to fetch only positive weights
         only_negative : optional
@@ -303,7 +303,7 @@ class mofa_model:
         absolute_values: bool = False,
     ):
         """
-        Get the matrix with loadings as a NumPy array or as a DataFrame (df=True).
+        Get the matrix with weights as a NumPy array or as a DataFrame (df=True).
 
         Parameters
         ----------
@@ -732,7 +732,7 @@ class mofa_model:
         """
         Project new data onto the factor space of the model.
 
-        For the projection, a pseudo-inverse of the loadings matrix is calculated 
+        For the projection, a pseudo-inverse of the weights matrix is calculated 
         and its product with the provided data matrix is calculated.
 
         Parameters
