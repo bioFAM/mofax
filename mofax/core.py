@@ -61,22 +61,39 @@ class mofa_model:
             # TODO: Update according to the latest API
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
-        self._samples_metadata = pd.DataFrame(
-            [
-                [cell, group]
-                for group, cell_list in self.samples.items()
-                for cell in cell_list
-            ],
-            columns=["sample", "group"],
-        ).set_index("sample").rename_axis(None)
-        self.features_metadata = pd.DataFrame(
-            [
-                [feature, view]
-                for view, feature_list in self.features.items()
-                for feature in feature_list
-            ],
-            columns=["feature", "view"],
-        ).set_index("feature").rename_axis(None)
+        if 'samples_metadata' in self.model:
+            self._samples_metadata = pd.concat(
+                [pd.DataFrame(self.model['samples_metadata'][g].values()).T for g in self.groups],
+                axis=0
+            )
+            self._samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
+            self._samples_metadata = self._samples_metadata.set_index("sample")
+        else:
+            self._samples_metadata = pd.DataFrame(
+                [
+                    [cell, group]
+                    for group, cell_list in self.samples.items()
+                    for cell in cell_list
+                ],
+                columns=["sample", "group"],
+            ).set_index("sample")
+
+        if 'features_metadata' in self.model:
+            self.features_metadata = pd.concat(
+                [pd.DataFrame(self.model['features_metadata'][m].values()).T for m in self.views],
+                axis=0
+            )
+            self.features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
+            self.features_metadata = self.features_metadata.set_index("feature")
+        else:
+            self.features_metadata = pd.DataFrame(
+                [
+                    [feature, view]
+                    for view, feature_list in self.features.items()
+                    for feature in feature_list
+                ],
+                columns=["feature", "view"],
+            ).set_index("feature")
 
     # Alias samples as cells
     @property

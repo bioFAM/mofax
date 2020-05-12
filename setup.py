@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mofax-gtca",
-    version="0.2.0",
+    version="0.3.0",
     author="Danila Bredikhin",
     author_email="danila.bredikhin@embl.de",
     description="Load and interpret MOFA models",
