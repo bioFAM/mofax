@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 import sys
+from os import path
 from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
@@ -18,6 +19,7 @@ class mofa_model:
 
     def __init__(self, filepath, mode="r"):
         self.filepath = filepath
+        self.filename = path.basename(filepath)
         self.model = h5py.File(filepath, mode)
 
         self.data = self.model["data"] if 'data' in self.model else None
@@ -94,6 +96,13 @@ class mofa_model:
                 ],
                 columns=["feature", "view"],
             ).set_index("feature")
+
+    def __repr__(self):
+        return(f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
+Samples (cells): {self.shape[0]}
+Features: {self.shape[1]}
+Groups: {', '.join(self.groups)}
+Views: {', '.join(self.views)}""")
 
     # Alias samples as cells
     @property
