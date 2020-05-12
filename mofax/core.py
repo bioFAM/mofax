@@ -64,8 +64,11 @@ class mofa_model:
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
         if 'samples_metadata' in self.model:
-            self._samples_metadata = pd.concat(
-                [pd.DataFrame(self.model['samples_metadata'][g].values()).T for g in self.groups],
+            self.samples_metadata = pd.concat(
+                [
+                    pd.concat([pd.Series(self.model['samples_metadata'][g][k]) for k in self.model['samples_metadata'][g].keys()], axis=1)
+                    for g in self.groups
+                ],
                 axis=0
             )
             self._samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
@@ -82,7 +85,10 @@ class mofa_model:
 
         if 'features_metadata' in self.model:
             self.features_metadata = pd.concat(
-                [pd.DataFrame(self.model['features_metadata'][m].values()).T for m in self.views],
+                [
+                    pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
+                    for m in self.views
+                ],
                 axis=0
             )
             self.features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
@@ -101,8 +107,8 @@ class mofa_model:
         return(f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
 Features: {self.shape[1]}
-Groups: {', '.join(self.groups)}
-Views: {', '.join(self.views)}""")
+Groups: {', '.join([f"{k} ({len(v)})" for k, v in self.samples.items()])}
+Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
 
     # Alias samples as cells
     @property
