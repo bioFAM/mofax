@@ -61,7 +61,29 @@ model.get_cells().head()
 
 Use `model.metadata` to get the metadata table — it's a shorhand for `samples_metadata`, there's also `features_metadata` available. 
 
+```python
+model.metadata.head()
+# returns a pandas.DataFrame object:
+#                     group  n_genes
+# sample
+# AATCCTGCACATCGCC-1  T_CD4     1087
+# AAGACGTGTGATGCCC-1  T_CD4     1836
+# AAGGAGCGTCGGCATG-1  T_CD4     2216
+# AATCCGTCACGAGACG-1  T_CD4     1615
+# ACACCGAGGAGGTTGA-1  T_CD4     1800
+```
+
 To get expectations of W (weights) and Z (factors) matrices, use `get_weights()` and `get_factors()`, respectively. There's also a `df=True` option to get expectations as a Pandas data frame rather than a NumPy 2D array.
+
+```python
+model.get_factors(factors=range(3), df=True).head()
+#                      Factor1   Factor2   Factor3
+# AATCCTGCACATCGCC-1  0.012582 -0.093512 -0.011228
+# AAGACGTGTGATGCCC-1  0.001091 -0.027217 -0.011331
+# AAGGAGCGTCGGCATG-1 -0.015097  0.093493 -0.010593
+# AATCCGTCACGAGACG-1 -0.046222  0.225920  0.010083
+# ACACCGAGGAGGTTGA-1  0.011766 -0.055964 -0.011298
+```
 
 #### Utility functions
 
