@@ -63,51 +63,52 @@ class mofa_model:
             # TODO: Update according to the latest API
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
+
+        self._samples_metadata = pd.DataFrame(
+            [
+                [cell, group]
+                for group, cell_list in self.samples.items()
+                for cell in cell_list
+            ],
+            columns=["sample", "group"],
+        )
         if 'samples_metadata' in self.model:
-            self.samples_metadata = pd.concat(
+            samples_metadata = pd.concat(
                 [
                     pd.concat([pd.Series(self.model['samples_metadata'][g][k]) for k in self.model['samples_metadata'][g].keys()], axis=1)
                     for g in self.groups
                 ],
                 axis=0
             )
-            self._samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
-            self._samples_metadata = self._samples_metadata.set_index("sample")
-            # Convert sample name and group name to strings (they are probably objects)
-            self._samples_metadata.index = self._samples_metadata.index.astype(str)
-            self._samples_metadata.group = self._samples_metadata.group.astype(str)
-        else:
-            self._samples_metadata = pd.DataFrame(
-                [
-                    [cell, group]
-                    for group, cell_list in self.samples.items()
-                    for cell in cell_list
-                ],
-                columns=["sample", "group"],
-            ).set_index("sample")
+            samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
 
+            self.samples_metadata = pd.concat([self._samples_metadata, samples_metadata], axis=1)
+
+        self._samples_metadata = self._samples_metadata.set_index("sample")
+        
+
+        self.features_metadata = pd.DataFrame(
+            [
+                [feature, view]
+                for view, feature_list in self.features.items()
+                for feature in feature_list
+            ],
+            columns=["feature", "view"],
+        )
         if 'features_metadata' in self.model:
-            self.features_metadata = pd.concat(
+            features_metadata = pd.concat(
                 [
                     pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
                     for m in self.views
                 ],
                 axis=0
             )
-            self.features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
-            self.features_metadata = self.features_metadata.set_index("feature")
-            # Convert feature name and view name to strings (they are probably objects)
-            self.features_metadata.index = self.features_metadata.index.astype(str)
-            self.features_metadata.view = self.features_metadata.view.astype(str)
-        else:
-            self.features_metadata = pd.DataFrame(
-                [
-                    [feature, view]
-                    for view, feature_list in self.features.items()
-                    for feature in feature_list
-                ],
-                columns=["feature", "view"],
-            ).set_index("feature")
+            features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
+            
+            self.features_metadata = pd.concat([self._features_metadata, features_metadata], axis=1)
+
+        self.features_metadata = self.features_metadata.set_index("feature")
+        
 
     def __repr__(self):
         return(f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
@@ -146,6 +147,16 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
     @metadata.setter
     def metadata(self, metadata):
         self.samples_metadata = metadata
+
+    @property
+    def features_metadata(self):
+        return self._features_metadata
+
+    @features_metadata.setter
+    def features_metadata(self, metadata):
+        if len(metadata) != self.shape[1]:
+            raise ValueError(f"Length of provided metadata {len(metadata)} does not match the length {self.shape[1]} of the data.")
+        self._features_metadata = metadata
 
     def close(self):
         """Close the connection to the HDF5 file"""
