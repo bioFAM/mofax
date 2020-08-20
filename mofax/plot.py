@@ -7,6 +7,7 @@ from typing import Union, Optional, List, Iterable
 import numpy as np
 from scipy.stats import pearsonr
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -625,9 +626,10 @@ def plot_factors_scatter(
     color=None,
     linewidth=0,
     size=5,
-    legend=False,
+    legend=True,
     legend_loc="best",
     legend_prop=None,
+    palette=None,
     **kwargs,
 ):
     """
@@ -664,6 +666,9 @@ def plot_factors_scatter(
         Legend location (e.g. 'upper left', 'center', or 'best')
     legend_prop : optional
         The font properties of the legend
+    palette : optional
+        cmap describing colours, default is None (cubehelix)
+        Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
     """
     z = model.get_factors(factors=[x, y], groups=groups, df=True)
     z.columns = ["x", "y"]
@@ -726,6 +731,7 @@ def plot_factors_scatter(
         )
     else:
         if groups_df is not None:
+            legend_str = 'brief' if legend else legend
             g = sns.scatterplot(
                 x="x",
                 y="y",
@@ -733,10 +739,12 @@ def plot_factors_scatter(
                 linewidth=linewidth,
                 s=size,
                 hue=color_var,
-                legend=legend,
+                legend=legend_str,
+                palette=palette,
                 **kwargs,
             )
         else:
+            # DEPRECATED
             g = sns.scatterplot(
                 x="x",
                 y="y",
@@ -748,6 +756,20 @@ def plot_factors_scatter(
             )
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+
+        if legend:
+            if is_numeric_dtype(z[color_var]):
+                means = z.groupby(grouping_var)[color_var].mean()
+                sizes = z.groupby(grouping_var).size()
+                norm = plt.Normalize(means.min(), means.max())
+                cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
+                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                sm.set_array([])
+                try:
+                    g.get_legend().remove()
+                    g.figure.colorbar(sm)
+                except Exception:
+                    warn("Cannot make a proper colorbar")
 
     return g
 
