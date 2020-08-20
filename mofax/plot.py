@@ -685,9 +685,9 @@ def plot_factors_scatter(
     grouping_var = groups_df.columns[0]
 
     # Assign colour to every cell if colouring by feature expression
-    if color is None:
+    if color is None or not color or color == grouping_var:
         color_var = grouping_var
-    else:
+    elif color != grouping_var:
         color_var = color
         color_df = model.fetch_values(variables=color)
         z = z.set_index("sample").join(color_df).reset_index()
@@ -731,7 +731,7 @@ def plot_factors_scatter(
         )
     else:
         if groups_df is not None:
-            legend_str = 'brief' if legend else legend
+            legend_str = 'brief' if (legend and color) else False
             g = sns.scatterplot(
                 x="x",
                 y="y",
