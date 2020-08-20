@@ -684,7 +684,7 @@ def plot_factors_scatter(
         color_var = grouping_var
     else:
         color_var = color
-        color_df = model.get_data(features=color, df=True)
+        color_df = model.fetch_values(variables=color)
         z = z.set_index("sample").join(color_df).reset_index()
         z = z.sort_values(color_var)
 
