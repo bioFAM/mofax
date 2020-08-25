@@ -73,16 +73,17 @@ class mofa_model:
             columns=["sample", "group"],
         )
         if 'samples_metadata' in self.model:
-            samples_metadata = pd.concat(
-                [
-                    pd.concat([pd.Series(self.model['samples_metadata'][g][k]) for k in self.model['samples_metadata'][g].keys()], axis=1)
-                    for g in self.groups
-                ],
-                axis=0
-            )
-            samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
+            if len(list(self.model['samples_metadata'][self.groups[0]].keys())) > 0:
+                samples_metadata = pd.concat(
+                    [
+                        pd.concat([pd.Series(self.model['samples_metadata'][g][k]) for k in self.model['samples_metadata'][g].keys()], axis=1)
+                        for g in self.groups
+                    ],
+                    axis=0
+                )
+                samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
 
-            self.samples_metadata = pd.concat([self._samples_metadata, samples_metadata], axis=1)
+                self.samples_metadata = pd.concat([self._samples_metadata, samples_metadata], axis=1)
 
         self._samples_metadata = self._samples_metadata.set_index("sample")
         
@@ -96,16 +97,17 @@ class mofa_model:
             columns=["feature", "view"],
         )
         if 'features_metadata' in self.model:
-            features_metadata = pd.concat(
-                [
-                    pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
-                    for m in self.views
-                ],
-                axis=0
-            )
-            features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
-            
-            self.features_metadata = pd.concat([self._features_metadata, features_metadata], axis=1)
+            if len(list(self.model['features_metadata'][self.views[0]].keys())) > 0:
+                features_metadata = pd.concat(
+                    [
+                        pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
+                        for m in self.views
+                    ],
+                    axis=0
+                )
+                features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
+                
+                self.features_metadata = pd.concat([self._features_metadata, features_metadata], axis=1)
 
         self.features_metadata = self.features_metadata.set_index("feature")
         
