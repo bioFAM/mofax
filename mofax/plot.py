@@ -771,6 +771,8 @@ def plot_factors_scatter(
                 except Exception:
                     warn("Cannot make a proper colorbar")
 
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
     return g
 
 
@@ -817,7 +819,7 @@ def plot_factors(
         group_label = "group"
 
     if groups_df is None:
-        groups_df = model.samples_metadata.loc[:,[group_label]]
+        groups_df = model.samples_metadata.loc[:,[*set([group_label, hue])]]
 
     # Add group information for samples (cells)
     z = z.set_index("sample").join(groups_df).reset_index()
@@ -828,6 +830,7 @@ def plot_factors(
     sns.despine(offset=10, trim=True)
 
     ax.set(xlabel="", ylabel="Factor value")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
     return ax
 

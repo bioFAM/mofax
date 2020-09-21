@@ -85,6 +85,15 @@ class mofa_model:
 
                 self.samples_metadata = pd.concat([self._samples_metadata, samples_metadata], axis=1)
 
+                # Decode objects as UTF-8 strings
+                for column in self.samples_metadata.columns:
+                    if self.samples_metadata[column].dtype == "object":
+                        try:
+                            self.samples_metadata[column] = [i.decode() for i in self.samples_metadata[column].values]
+                        except (UnicodeDecodeError, AttributeError):
+                            pass
+                        
+
         self._samples_metadata = self._samples_metadata.set_index("sample")
         
 
@@ -98,16 +107,25 @@ class mofa_model:
         )
         if 'features_metadata' in self.model:
             if len(list(self.model['features_metadata'][self.views[0]].keys())) > 0:
-                features_metadata = pd.concat(
-                    [
-                        pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
+                features_metadata_dict = {
+                        m:pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
                         for m in self.views
-                    ],
-                    axis=0
-                )
-                features_metadata.columns = list(self.model['features_metadata'][self.views[0]].keys())
+                    }
+
+                for m in features_metadata_dict.keys():
+                    features_metadata_dict[m].columns = list(self.model['features_metadata'][m].keys())
                 
-                self.features_metadata = pd.concat([self._features_metadata, features_metadata], axis=1)
+                features_metadata = pd.concat(features_metadata_dict, axis=0)
+                
+                self.features_metadata = pd.concat([self._features_metadata, features_metadata.reset_index()], axis=1)
+
+                # Decode objects as UTF-8 strings
+                for column in self.features_metadata.columns:
+                    if self.features_metadata[column].dtype == "object":
+                        try:
+                            self.features_metadata[column] = [i.decode() for i in self.features_metadata[column].values]
+                        except (UnicodeDecodeError, AttributeError):
+                            pass
 
         self.features_metadata = self.features_metadata.set_index("feature")
         
