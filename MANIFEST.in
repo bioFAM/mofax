@@ -1,0 +1,5 @@
+recursive-exclude notebooks *
+recursive-exclude tests *
+recursive-exclude data *
+recursive-exclude models *
+recursive-exclude img *
