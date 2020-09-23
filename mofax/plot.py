@@ -2,13 +2,14 @@ from .core import mofa_model, umap, padjust_fdr_2d
 
 import sys
 from warnings import warn
-from typing import Union, Optional, List, Iterable
+from typing import Union, Optional, List, Iterable, Sequence
 
 import numpy as np
 from scipy.stats import pearsonr
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
 import seaborn as sns
 
 sns.set_style("ticks")
@@ -630,6 +631,7 @@ def plot_factors_scatter(
     legend_loc="best",
     legend_prop=None,
     palette=None,
+    ncols=4,
     **kwargs,
 ):
     """
@@ -655,6 +657,7 @@ def plot_factors_scatter(
         Sample (cell) metadata column to be used as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided (when no kde/hist).
+        If a list of features is provided, they will be plot on one figure.
         Use palette argument to provide a colour map.
     linewidth : optional
         Linewidth argument for dots (default is 0)
@@ -669,6 +672,8 @@ def plot_factors_scatter(
     palette : optional
         cmap describing colours, default is None (cubehelix)
         Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
+    ncols : optional
+        Number of columns if multiple colours are defined (4 by default)
     """
     z = model.get_factors(factors=[x, y], groups=groups, df=True)
     z.columns = ["x", "y"]
@@ -686,12 +691,14 @@ def plot_factors_scatter(
 
     # Assign colour to every cell if colouring by feature expression
     if color is None or not color or color == grouping_var:
-        color_var = grouping_var
-    elif color != grouping_var:
-        color_var = color
+        color_vars = [grouping_var]
+    else: 
+        if color != grouping_var and isinstance(color, str):
+            color_vars = [color]
+        else:
+            color_vars = [i for i in color if i != grouping_var]
         color_df = model.fetch_values(variables=color)
         z = z.set_index("sample").join(color_df).reset_index()
-        z = z.sort_values(color_var)
 
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
@@ -701,11 +708,22 @@ def plot_factors_scatter(
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
-    if hist or kde:
-        if groups_df is not None:
+    ncols = min(ncols, len(color_vars))
+    nrows = int(np.ceil(len(color_vars) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, 
+                             sharex=True, sharey=True,
+                             figsize=(ncols * rcParams['figure.figsize'][0],
+                                      nrows * rcParams['figure.figsize'][1]))
+    if nrows == 1:
+        axes = np.array(axes).reshape(1, -1)
+
+    for i, color_var in enumerate(color_vars):
+        ri = i // ncols
+        ci = i % ncols
+        if hist or kde:
             # Construct a custom joint plot
             # in order to colour samples (cells)
-            g = sns.JointGrid(x="x", y="y", data=z)
+            g = sns.JointGrid(x="x", y="y", data=z, ax=axes[ri, ci])
             group_labels = []
             for group, group_samples in z.groupby(grouping_var):
                 sns.distplot(group_samples["x"], ax=g.ax_marg_x, kde=kde, hist=hist)
@@ -720,58 +738,51 @@ def plot_factors_scatter(
                 legend = g.ax_joint.legend(
                     labels=group_labels, loc=legend_loc, prop=legend_prop
                 )
-        else:
-            # DEPRECATED
-            g = sns.jointplot(
-                x="x", y="y", data=z, linewidth=linewidth, s=size, **kwargs
+            sns.despine(offset=10, trim=True, ax=g.ax_joint)
+            g.ax_joint.set(
+                xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
             )
-        sns.despine(offset=10, trim=True, ax=g.ax_joint)
-        g.ax_joint.set(
-            xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
-        )
-    else:
-        if groups_df is not None:
+        else:
             legend_str = 'brief' if (legend and color) else False
             g = sns.scatterplot(
                 x="x",
                 y="y",
-                data=z,
+                data=z.sort_values(color_var),
                 linewidth=linewidth,
                 s=size,
                 hue=color_var,
                 legend=legend_str,
                 palette=palette,
+                ax=axes[ri, ci],
                 **kwargs,
             )
-        else:
-            # DEPRECATED
-            g = sns.scatterplot(
-                x="x",
-                y="y",
-                data=z,
-                linewidth=linewidth,
-                s=size,
-                legend=legend,
-                **kwargs,
-            )
-        sns.despine(offset=10, trim=True, ax=g)
-        g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+            sns.despine(offset=10, trim=True, ax=g)
+            g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
-        if legend:
-            if is_numeric_dtype(z[color_var]):
-                means = z.groupby(grouping_var)[color_var].mean()
-                sizes = z.groupby(grouping_var).size()
-                norm = plt.Normalize(means.min(), means.max())
-                cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
-                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                sm.set_array([])
-                try:
-                    g.get_legend().remove()
-                    g.figure.colorbar(sm)
-                except Exception:
-                    warn("Cannot make a proper colorbar")
+            if legend:
+                if is_numeric_dtype(z[color_var]):
+                    means = z.groupby(grouping_var)[color_var].mean()
+                    sizes = z.groupby(grouping_var).size()
+                    norm = plt.Normalize(means.min(), means.max())
+                    cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
+                    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                    sm.set_array([])
+                    try:
+                        g.figure.colorbar(sm, ax=axes[ri, ci])
+                        g.get_legend().remove()
+                    except Exception:
+                        warn("Cannot make a proper colorbar")
+                else:
+                    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    # Remove unused axes
+    for i in range(len(color_vars), ncols * nrows):
+        ri = i // ncols
+        ci = i % ncols
+        fig.delaxes(axes[ri,ci])
+
+    plt.setp(axes, yticks=[])
+    plt.tight_layout()
 
     return g
 
