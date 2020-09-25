@@ -10,6 +10,8 @@ This library provides convenience functions to load and visualize factor models 
 
 ```
 pip install git+https://github.com/gtca/mofax
+# or
+pip install mofax
 ```
 
 ### Training a factor model
