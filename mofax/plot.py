@@ -622,7 +622,9 @@ def plot_factors_scatter(
     groups=None,
     group_label='group',
     color=None,
+    zero_line=False,
     linewidth=0,
+    zero_linewidth=1,
     size=5,
     legend=True,
     legend_prop=None,
@@ -653,8 +655,12 @@ def plot_factors_scatter(
         Grouping variable by default, alternatively a feature name can be provided (when no kde).
         If a list of features is provided, they will be plot on one figure.
         Use palette argument to provide a colour map.
+    zero_line : optional
+        Boolean values if to add Z=0 line
     linewidth : optional
         Linewidth argument for dots (default is 0)
+    zero_linewidth : optional
+        Linewidth argument for the zero line (default is 1)
     size : optional
         Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
     legend : optional bool
@@ -721,6 +727,9 @@ def plot_factors_scatter(
         )
         if legend:
             g.ax_joint.legend(bbox_to_anchor=(1.4, 1), loc=2, borderaxespad=0., prop=legend_prop)
+        if zero_line:
+            g.axhline(0, ls='--', color="lightgrey", linewidth=linewidth, zorder=0)
+            g.axvline(0, ls='--', color="lightgrey", linewidth=linewidth, zorder=0)
     else:
         # Figure out rows & columns for the grid with plots
         ncols = min(ncols, len(color_vars))
@@ -766,6 +775,11 @@ def plot_factors_scatter(
                 else:
                     g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
 
+            if zero_line:
+                print('zero line')
+                axes[ri,ci].axhline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
+                axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
+
         # Remove unused axes
         for i in range(len(color_vars), ncols * nrows):
             ri = i // ncols
@@ -777,7 +791,7 @@ def plot_factors_scatter(
     return g
 
 
-def plot_factors_violinplot(
+def plot_factors_violin(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
     x="factor",
@@ -785,9 +799,11 @@ def plot_factors_violinplot(
     color="group",
     violins=True,
     dots=False,
+    zero_line=True,
     group_label='group',
     groups=None,
     linewidth=0,
+    zero_linewidth=1,
     size=4,
     legend=True,
     legend_prop=None,
@@ -820,8 +836,12 @@ def plot_factors_violinplot(
         Boolean value if to add violin plots
     dots : optional
         Boolean value if to add dots to the plots
+    zero_line : optional
+        Boolean values if to add Z=0 line
     linewidth : optional
         Linewidth argument for dots (default is 0)
+    zero_linewidth : optional
+        Linewidth argument for the zero line (default is 1)
     size : optional
         Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
     legend : optional bool
@@ -883,6 +903,9 @@ def plot_factors_violinplot(
         ci = i % ncols
         
         legend_str = 'brief' if (legend and color) else False
+
+        if zero_line:
+            axes[ri,ci].axhline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
         if violins:
             g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var),
                                hue=color_var, linewidth=linewidth, s=size, 
@@ -909,7 +932,6 @@ def plot_factors_violinplot(
         ci = i % ncols
         fig.delaxes(axes[ri,ci])
 
-    plt.setp(axes, yticks=[])
     plt.tight_layout()
 
     return g
