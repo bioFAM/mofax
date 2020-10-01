@@ -761,8 +761,7 @@ def plot_factors_scatter(
 
             if legend and color_var:
                 if is_numeric_dtype(z[color_var]):
-                    means = z.groupby(grouping_var)[color_var].mean()
-                    sizes = z.groupby(grouping_var).size()
+                    means = z.groupby(group_label)[color_var].mean() if group_label else z[color_var].mean()
                     norm = plt.Normalize(means.min(), means.max())
                     cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
                     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
