@@ -937,14 +937,15 @@ def plot_factors_violin(
     return g
 
 
-def plot_factors_matrixplot(
+def plot_factors_matrix(
     model: mofa_model,
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
-    groups_df=None,
     group_label: Optional[str] = None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
     agg="mean",
     cmap="viridis",
+    vmin=None,
+    vmax=None,
     **kwargs,
 ):
     """
@@ -956,8 +957,6 @@ def plot_factors_matrixplot(
         Factor model
     factors : optional
         Factor idices or names (all factors by default)
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
     group_label : optional
         Sample (cell) metadata column to be used as group assignment
     groups : optional
@@ -974,11 +973,9 @@ def plot_factors_matrixplot(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every sample (cell) if it is provided
-    if groups_df is None and group_label is None:
+    if group_label is None:
         group_label = "group"
-
-    if groups_df is None:
-        groups_df = model.samples_metadata.loc[:,[group_label]]
+    groups_df = model.samples_metadata.loc[:,[group_label]]
 
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
@@ -998,7 +995,7 @@ def plot_factors_matrixplot(
     )
     z = z.sort_values("factor", ascending=False)
 
-    ax = sns.heatmap(z, cmap=cmap, **kwargs)
+    ax = sns.heatmap(z, cmap=cmap, vmin=vmin, vmax=vmax, **kwargs)
     ax.set(ylabel="Factor", xlabel="Group")
     ax.set_yticklabels(ax.yaxis.get_ticklabels(), rotation=0)
 
