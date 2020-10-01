@@ -777,21 +777,24 @@ def plot_factors_scatter(
     return g
 
 
-def plot_factors(
+def plot_factors_violinplot(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
     x="factor",
     y="value",
     color="group",
-    violin=False,
+    violins=True,
+    dots=False,
     group_label='group',
+    groups=None,
     linewidth=0,
     size=4,
     legend=True,
-    legend_loc=None,
     legend_prop=None,
     palette=None,
     ncols=4,
+    sharex=False,
+    sharey=False,
     **kwargs,
 ):
     """
@@ -809,42 +812,62 @@ def plot_factors(
         Variable to plot along Y axis (factor value by default)
     color : optional
         Variable to split & colour dots by (cell group by default)
-    violin : optional
-        Boolean value if to add violin plots
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
+    groups : optional
+        Subset of groups to consider
     group_label : optional
-        Sample (cell) metadata column to be used as group assignment
+        Sample (cell) metadata column to be used as group assignment ('group' by default)
+    violins : optional
+        Boolean value if to add violin plots
+    dots : optional
+        Boolean value if to add dots to the plots
+    linewidth : optional
+        Linewidth argument for dots (default is 0)
+    size : optional
+        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
+    legend : optional bool
+        If to show the legend (e.g. colours matching groups)
+    legend_prop : optional
+        The font properties of the legend
+    palette : optional
+        cmap describing colours, default is None (cubehelix)
+        Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
+    ncols : optional
+        Number of columns if multiple colours are defined (4 by default)
+    sharex: optional
+        Common X axis across plots on the grid
+    sharey: optional
+        Common Y axis across plots on the grid
     """
+
+    # Process input arguments
+    if group_label == 'group' and not color:
+        color = 'group'
+    color_vars = [color] if not color or isinstance(color, str) else color
+
+    assert not (len(color_vars) > 1 and dist), "When plotting distributions, only one color can be provided at the moment"
+    assert violins or dots, "Either violins=True or dots=True"
+
+    # Get factors
     z = model.get_factors(factors=factors, df=True)
     z = z.rename_axis("sample").reset_index()
     # Make the table long for plotting
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
-    # Assign a group to every cell if it is provided
-    if group_label is not None:
-        groups_df = model.samples_metadata.loc[:,[group_label]]
-        grouping_var = groups_df.columns[0]
+    # Add group and colour information
+    vars = [group_label, *color_vars]
+    if any([not(not(i)) for i in vars]):
+        meta = model.fetch_values(variables=vars)
+        z = z.set_index("sample").join(meta).reset_index()
 
-        # Add group information for samples (cells)
-        z = z.set_index("sample").join(groups_df).reset_index()
-    else:
-        grouping_var = None
+    # Subset groups (incl. custom groups of samples)
+    if group_label and groups is not None:
+        z = z[z[group_label].isin(groups)]
 
-    # Assign colour to every cell if colouring by feature expression
-    if color is None or not color or color == grouping_var:
-        color_vars = [grouping_var]
-    else:
-        if color != grouping_var and isinstance(color, str):
-            color_vars = [color]
-        else:
-            color_vars = [i for i in color if i != grouping_var]
-        color_df = model.fetch_values(variables=color)
-        z = z.set_index("sample").join(color_df).reset_index()
-    
     # Set default colour to black if none set
-    if "c" not in kwargs and color is None:
+    if "c" not in kwargs and not color:
         kwargs["color"] = "black"
+
+    legend_str = 'brief' if (legend and color) else False
 
     ncols = min(ncols, len(color_vars))
     nrows = int(np.ceil(len(color_vars) / ncols))
@@ -860,32 +883,19 @@ def plot_factors(
         ci = i % ncols
         
         legend_str = 'brief' if (legend and color) else False
-        if violin:
+        if violins:
             g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var),
-                                hue=color_var, linewidth=linewidth, s=size, 
-                                legend=legend_str, palette=palette, inner=None, ax=axes[ri,ci])
-        g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var) if color_var else z,
-                          hue=color_var, linewidth=linewidth, s=size, 
-                          palette=palette, dodge=True, ax=axes[ri,ci], **kwargs)
+                               hue=color_var, linewidth=linewidth, s=size, 
+                               legend=legend_str, palette=palette, inner=None, ax=axes[ri,ci])
+        if dots:
+            g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var) if color_var else z,
+                              hue=color_var, linewidth=linewidth, s=size, 
+                              palette=palette, dodge=True, ax=axes[ri,ci], **kwargs)
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel="", ylabel="Factor value")
 
         if legend and color_var:
-            if is_numeric_dtype(z[color_var]):
-                means = z.groupby(grouping_var)[color_var].mean()
-                sizes = z.groupby(grouping_var).size()
-                norm = plt.Normalize(means.min(), means.max())
-                cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
-                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                sm.set_array([])
-                try:
-                    g.figure.colorbar(sm, ax=axes[ri, ci])
-                    g.get_legend().remove()
-                except Exception:
-                    warn("Cannot make a proper colorbar")
-                    
-            else:
-                g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
+            g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
                     
         else:
             try:
