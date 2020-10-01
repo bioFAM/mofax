@@ -614,23 +614,22 @@ def plot_weights_correlation(
 
 ### FACTOR VALUES ###
 
-
 def plot_factors_scatter(
     model: mofa_model,
     x="Factor1",
     y="Factor2",
-    hist=False,
-    kde=False,
+    dist=False,
     groups=None,
-    group_label=None,
+    group_label='group',
     color=None,
     linewidth=0,
     size=5,
     legend=True,
-    legend_loc="best",
     legend_prop=None,
     palette=None,
     ncols=4,
+    sharex=False,
+    sharey=False,
     **kwargs,
 ):
     """
@@ -644,16 +643,14 @@ def plot_factors_scatter(
         Factor to plot along X axis (Factor1 by default)
     y : optional
         Factor to plot along Y axis (Factor2 by default)
-    hist : optional
-        Boolean value if to add marginal histograms to the scatterplot (jointplot)
-    kde : optional
-        Boolean value if to add marginal distributions to the scatterplot (jointplot)
+    dist : optional
+        Boolean value if to add marginal distributions or histograms to the scatterplot (jointplot)
     groups : optional
         Subset of groups to consider
     group_label : optional
-        Sample (cell) metadata column to be used as group assignment
+        Sample (cell) metadata column to be used as group assignment ('group' by default)
     color : optional
-        Grouping variable by default, alternatively a feature name can be provided (when no kde/hist).
+        Grouping variable by default, alternatively a feature name can be provided (when no kde).
         If a list of features is provided, they will be plot on one figure.
         Use palette argument to provide a colour map.
     linewidth : optional
@@ -662,8 +659,6 @@ def plot_factors_scatter(
         Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
     legend : optional bool
         If to show the legend (e.g. colours matching groups)
-    legend_loc : optional
-        Legend location (e.g. 'upper left', 'center', or 'best')
     legend_prop : optional
         The font properties of the legend
     palette : optional
@@ -671,78 +666,79 @@ def plot_factors_scatter(
         Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
     ncols : optional
         Number of columns if multiple colours are defined (4 by default)
+    sharex: optional
+        Common X axis across plots on the grid
+    sharey: optional
+        Common Y axis across plots on the grid
     """
-    z = model.get_factors(factors=[x, y], groups=groups, df=True)
+
+    # Process input arguments
+    if group_label == 'group' and not color:
+        color = 'group'
+    color_vars = [color] if not color or isinstance(color, str) else color
+
+    assert not (len(color_vars) > 1 and dist), "When plotting distributions, only one color can be provided at the moment"
+
+    # Get factors
+    z = model.get_factors(factors=[x, y], df=True)
     z.columns = ["x", "y"]
 
-    # Assign a group to every cell if it is provided
-    if group_label is None:
-        group_label = "group"
-    groups_df = model.samples_metadata.loc[:,[group_label]]
+    # Add group and colour information
+    vars = [group_label, *color_vars]
+    if any([not(not(i)) for i in vars]):
+        meta = model.fetch_values(variables=vars)
+        z = z.rename_axis("sample").reset_index()
+        z = z.set_index("sample").join(meta).reset_index()
 
-    z = z.rename_axis("sample").reset_index()
-    z = z.set_index("sample").join(groups_df).reset_index()
-    grouping_var = groups_df.columns[0]
-
-    # Assign colour to every cell if colouring by feature expression
-    if color is None or not color or color == grouping_var:
-        color_vars = [grouping_var]
-    else: 
-        if color != grouping_var and isinstance(color, str):
-            color_vars = [color]
-        else:
-            color_vars = [i for i in color if i != grouping_var]
-        color_df = model.fetch_values(variables=color)
-        z = z.set_index("sample").join(color_df).reset_index()
+    # Subset groups (incl. custom groups of samples)
+    if group_label and groups is not None:
+        z = z[z[group_label].isin(groups)]
 
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
     y_factor_label = f"Factor{y+1}" if isinstance(y, int) else y
 
     # Set default colour to black if none set
-    if "c" not in kwargs and "color" not in kwargs:
+    if "c" not in kwargs and not color:
         kwargs["color"] = "black"
 
-    ncols = min(ncols, len(color_vars))
-    nrows = int(np.ceil(len(color_vars) / ncols))
-    fig, axes = plt.subplots(nrows, ncols, 
-                             sharex=True, sharey=True,
-                             figsize=(ncols * rcParams['figure.figsize'][0],
-                                      nrows * rcParams['figure.figsize'][1]))
-    if nrows == 1:
-        axes = np.array(axes).reshape(1, -1)
 
-    for i, color_var in enumerate(color_vars):
-        ri = i // ncols
-        ci = i % ncols
-        if hist or kde:
-            # Construct a custom joint plot
-            # in order to colour samples (cells)
-            g = sns.JointGrid(x="x", y="y", data=z, ax=axes[ri, ci])
-            group_labels = []
-            for group, group_samples in z.groupby(grouping_var):
-                sns.distplot(group_samples["x"], ax=g.ax_marg_x, kde=kde, hist=hist)
-                sns.distplot(
-                    group_samples["y"], ax=g.ax_marg_y, vertical=True, kde=kde, hist=hist
-                )
-                g.ax_joint.plot(
-                    group_samples["x"], group_samples["y"], "o", ms=size, **kwargs
-                )
-                group_labels.append(group)
-            if legend:
-                legend = g.ax_joint.legend(
-                    labels=group_labels, loc=legend_loc, prop=legend_prop
-                )
-            sns.despine(offset=10, trim=True, ax=g.ax_joint)
-            g.ax_joint.set(
-                xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
-            )
-        else:
-            legend_str = 'brief' if (legend and color) else False
+    legend_str = 'brief' if (legend and color) else False
+
+    if dist:
+        g = sns.jointplot(x="x", y="y",
+                      hue=color_vars[0],
+                      data=z.sort_values(color_vars[0]) if color_vars[0] else z,
+                      linewidth=linewidth,
+                      s=size,
+                      legend=legend_str,
+                      palette=palette,
+                      **kwargs
+                      )
+        sns.despine(offset=10, trim=True, ax=g.ax_joint)
+        g.ax_joint.set(
+            xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
+        )
+        if legend:
+            g.ax_joint.legend(bbox_to_anchor=(1.4, 1), loc=2, borderaxespad=0., prop=legend_prop)
+    else:
+        # Figure out rows & columns for the grid with plots
+        ncols = min(ncols, len(color_vars))
+        nrows = int(np.ceil(len(color_vars) / ncols))
+        fig, axes = plt.subplots(nrows, ncols, 
+                                 sharex=sharex, sharey=sharey,
+                                 figsize=(ncols * rcParams['figure.figsize'][0],
+                                          nrows * rcParams['figure.figsize'][1]))
+        if nrows == 1:
+            axes = np.array(axes).reshape(1, -1)
+
+        for i, color_var in enumerate(color_vars):
+            ri = i // ncols
+            ci = i % ncols
             g = sns.scatterplot(
                 x="x",
                 y="y",
-                data=z.sort_values(color_var),
+                data=z.sort_values(color_var) if color_var else z,
                 linewidth=linewidth,
                 s=size,
                 hue=color_var,
@@ -754,7 +750,7 @@ def plot_factors_scatter(
             sns.despine(offset=10, trim=True, ax=g)
             g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
 
-            if legend:
+            if legend and color_var:
                 if is_numeric_dtype(z[color_var]):
                     means = z.groupby(grouping_var)[color_var].mean()
                     sizes = z.groupby(grouping_var).size()
@@ -768,15 +764,14 @@ def plot_factors_scatter(
                     except Exception:
                         warn("Cannot make a proper colorbar")
                 else:
-                    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+                    g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
 
-    # Remove unused axes
-    for i in range(len(color_vars), ncols * nrows):
-        ri = i // ncols
-        ci = i % ncols
-        fig.delaxes(axes[ri,ci])
+        # Remove unused axes
+        for i in range(len(color_vars), ncols * nrows):
+            ri = i // ncols
+            ci = i % ncols
+            fig.delaxes(axes[ri,ci])
 
-    plt.setp(axes, yticks=[])
     plt.tight_layout()
 
     return g
@@ -869,13 +864,13 @@ def plot_factors(
             g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var),
                                 hue=color_var, linewidth=linewidth, s=size, 
                                 legend=legend_str, palette=palette, inner=None, ax=axes[ri,ci])
-        g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var),
+        g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var) if color_var else z,
                           hue=color_var, linewidth=linewidth, s=size, 
                           palette=palette, dodge=True, ax=axes[ri,ci], **kwargs)
         sns.despine(offset=10, trim=True, ax=g)
         g.set(xlabel="", ylabel="Factor value")
 
-        if legend:
+        if legend and color_var:
             if is_numeric_dtype(z[color_var]):
                 means = z.groupby(grouping_var)[color_var].mean()
                 sizes = z.groupby(grouping_var).size()
