@@ -266,7 +266,8 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         scaled_values: bool = False,
         absolute_values: bool = False,
         only_positive: bool = False,
-        only_negative: bool = False
+        only_negative: bool = False,
+        df: bool = False
     ):
         """
         Fetch a list of top feature names
@@ -287,6 +288,8 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             If to fetch only positive weights
         only_negative : optional
             If to fetch only negative weights
+        df : optional
+            Boolean value if to return a DataFrame
         """
         views = self.__check_views(views)
         findices, factors = self.__check_factors(factors)
@@ -311,17 +314,21 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             wm = wm[wm.value < 0]
 
         if n_features is None and clip_threshold is not None:
-            features = wm[wm.value_abs >= clip_threshold].feature.unique()
+            wm = wm[wm.value_abs >= clip_threshold]
         else:
             if n_features is None:
                 n_features = n_features_default
             # Get a subset of features
             wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
             if clip_threshold is None:
-                features = wm.head(n_features).feature.unique()
+                wm = wm.head(n_features).reset_index()
             else:
-                features = wm[wm.value_abs >= clip_threshold].head(n_features).feature.unique()
+                wm = wm[wm.value_abs >= clip_threshold].head(n_features)
+        
+        if df:
+            return wm
 
+        features = wm.feature.unique()
         return features
 
     def get_factors(
