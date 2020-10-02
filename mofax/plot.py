@@ -21,6 +21,114 @@ sns.set_palette("Set2")
 
 def plot_weights(
     model: mofa_model,
+    factors=None,
+    views=0,
+    n_features: int = 5,
+    size=2,
+    color="black",
+    label_size=5,
+    x_offset=.03,
+    y_offset=.1,
+    jitter=.01,
+    line_width=.5,
+    line_color="black",
+    line_alpha=.2,
+    **kwargs,
+):
+    """
+    Plot weights (loadings) for a specific factor
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Factors to use (default is all)
+    views : options
+        The views to get the factors weights for (first view by default)
+    n_features : optional
+        Number of features to label with most positive and most negative weights
+    label_size : optional
+        Font size of feature labels (default is 5)
+    x_offset : optional
+        Offset the feature labels from the left/right side (by 0.03 points by default)
+    y_offset : optional
+        Parameter to repel feature labels along the y axis (0.1 by default)
+    """
+    w = model.get_weights(views=views, factors=factors, df=True).join(model.features_metadata.loc[:,["view"]])
+    w = w.rename_axis("feature").reset_index()
+    # Make the table long for plotting
+    wm = w.melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
+    wm["abs_value"] = abs(wm.value)
+
+    # Assign ranks to features, per factor
+    wm["rank"] = wm.groupby("factor")["value"].rank(ascending=False)
+    wm["abs_rank"] = wm.groupby("factor")["abs_value"].rank(ascending=False)
+    wm = wm.sort_values(["factor", "abs_rank"], ascending=True)
+
+    # Set default colour to black if none set
+    if "c" not in kwargs and "color" not in kwargs:
+        kwargs["color"] = "black"
+
+    # Fetch top features to label
+    features_to_label = model.get_top_features(factors=factors, views=views, n_features=n_features, df=True)
+    features_to_label["to_label"] = True
+    wm = features_to_label \
+        .loc[:,["feature", "factor", "to_label"]] \
+        .set_index(["feature", "factor"]) \
+        .join(wm.set_index(["feature", "factor"]), how="right") \
+        .reset_index() \
+        .fillna({"to_label": False}) \
+        .assign(factor_index = wm.factor.str.replace("Factor", "").astype(int)) \
+        .sort_values(["factor_index", "to_label"])
+
+    # Construct the plot
+    g = sns.stripplot(data=wm, x='value', y='factor', jitter=jitter, size=size,
+                      hue="to_label", palette=["lightgrey", color], )
+    sns.despine(offset=10, trim=True, ax=g)
+    g.legend().remove()
+
+    # Label some points
+    for fi, factor in enumerate(wm.factor.unique()):
+    # for fi, factor_index in enumerate(wm.factor_index.unique()):
+        # Factor1, Factor10, Factor2, ... -> Factor1, Factor2, ...
+        # factor = f"Factor{factor_index}"
+        for sign_i in [1, -1]:
+            to_label = features_to_label[features_to_label.factor == factor].feature.tolist()
+            w_set = wm.query('factor == @factor & value * @sign_i > 0 & feature == @to_label').sort_values("value", ascending=False)
+
+            x_start_pos = w_set.value.max() + sign_i * x_offset
+            y_start_pos = fi - ((w_set.shape[0] - 1) // 2) * y_offset
+            y_prev = y_start_pos
+
+            for i, row in enumerate(w_set.iterrows()):
+                name, point = row
+                y_loc = y_prev + y_offset if i != 0 else y_start_pos
+
+                g.annotate(point["feature"],
+                    xy=(point.value, fi),
+                    xytext=(x_start_pos, y_loc),
+                    arrowprops=dict(arrowstyle="-",
+                                    connectionstyle="arc3",
+                                    color=line_color,
+                                    alpha=line_alpha,
+                                    linewidth=line_width),
+                    horizontalalignment="left" if sign_i > 0 else "right",
+                    size=label_size,
+                    color="black",
+                    weight="regular",
+                    alpha=.9
+                )
+                y_prev = y_loc
+
+    # Set plot axes labels
+    g.set(ylabel="", xlabel="Feature weight")
+
+    return g
+
+
+def plot_weights_ranked(
+    model: mofa_model,
     factor="Factor1",
     view=0,
     n_features: int = 10,
