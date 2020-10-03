@@ -102,6 +102,8 @@ def plot_weights(
                              sharex=True, sharey=True,
                              figsize=(ncols * rcParams['figure.figsize'][0],
                                       nrows * rcParams['figure.figsize'][1]))
+    if ncols == 1:
+        axes = np.array(axes).reshape(-1, 1)
     if nrows == 1:
         axes = np.array(axes).reshape(1, -1)
 
@@ -148,7 +150,7 @@ def plot_weights(
                     y_prev = y_loc
 
         # Set plot axes labels
-        g.set(ylabel="", xlabel="Feature weight")
+        g.set(ylabel="", xlabel="Feature weight", title=view)
 
         if zero_line:
             axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
@@ -882,6 +884,8 @@ def plot_factors_scatter(
                                  sharex=sharex, sharey=sharey,
                                  figsize=(ncols * rcParams['figure.figsize'][0],
                                           nrows * rcParams['figure.figsize'][1]))
+        if ncols == 1:
+            axes = np.array(axes).reshape(-1, 1)
         if nrows == 1:
             axes = np.array(axes).reshape(1, -1)
 
