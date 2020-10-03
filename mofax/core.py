@@ -267,6 +267,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         absolute_values: bool = False,
         only_positive: bool = False,
         only_negative: bool = False,
+        per_view: bool = True,
         df: bool = False
     ):
         """
@@ -288,11 +289,13 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             If to fetch only positive weights
         only_negative : optional
             If to fetch only negative weights
+        per_view : optional
+            Get n_features per view rather than globally (True by default)
         df : optional
             Boolean value if to return a DataFrame
         """
         views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors)
+        findices, factors = self.__check_factors(factors, unique=True)
         n_features_default = 10
         
         # Fetch weights for the relevant factors
@@ -304,6 +307,9 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
         wm = wm.assign(value_abs=lambda x: x.value.abs())
         wm["factor"] = wm["factor"].astype("category")
+        wm = wm.set_index("feature") \
+               .join(self.features_metadata.loc[:,["view"]], how="left") \
+               .reset_index()
 
         if only_positive and only_negative:
             print("Please specify either only_positive or only_negative")
@@ -319,7 +325,11 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             if n_features is None:
                 n_features = n_features_default
             # Get a subset of features
-            wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+            if per_view:
+                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(["factor", "view"])
+            else:
+                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(["factor", "view"])
+            # Use clip threshold if provided
             if clip_threshold is None:
                 wm = wm.head(n_features).reset_index()
             else:
@@ -395,7 +405,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             If return absolute values for weights
         """
         views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors)
+        findices, factors = self.__check_factors(factors, unique=True)
         w = np.concatenate(
             tuple(np.array(self.weights[view]).T[:, findices] for view in views)
         )
@@ -532,13 +542,15 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             groups = [self.views[g] if isinstance(g, int) else g for g in groups]
         return groups
 
-    def __check_factors(self, factors):
+    def __check_factors(self, factors, unique=False):
         # Use all factors by default
         if factors is None:
             factors = list(range(self.nfactors))
         # If one factor is used, wrap it in a list
         if not isinstance(factors, Iterable) or isinstance(factors, str):
             factors = [factors]
+        if unique:
+            factors = list(set(factors))
         # Convert factor names (FactorN) to factor indices (N-1)
         findices = [
             int(fi.replace("Factor", "")) - 1 if isinstance(fi, str) else fi
