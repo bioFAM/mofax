@@ -78,9 +78,13 @@ def plot_weights(
         .set_index(["feature", "factor"]) \
         .join(wm.set_index(["feature", "factor"]), how="right") \
         .reset_index() \
-        .fillna({"to_label": False}) \
-        .assign(factor_index = wm.factor.str.replace("Factor", "").astype(int)) \
-        .sort_values(["factor_index", "to_label"])
+        .fillna({"to_label": False}) 
+
+    # Sort factors
+    wm["factor"] = wm["factor"].astype("category")
+    wm["factor"] = wm["factor"].cat.reorder_categories(
+        sorted(wm["factor"].cat.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
 
     # Construct the plot
     g = sns.stripplot(data=wm, x='value', y='factor', jitter=jitter, size=size,
@@ -89,7 +93,7 @@ def plot_weights(
     g.legend().remove()
 
     # Label some points
-    for fi, factor in enumerate(wm.factor.unique()):
+    for fi, factor in enumerate(wm.factor.cat.categories):
     # for fi, factor_index in enumerate(wm.factor_index.unique()):
         # Factor1, Factor10, Factor2, ... -> Factor1, Factor2, ...
         # factor = f"Factor{factor_index}"
