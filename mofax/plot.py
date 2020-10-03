@@ -24,11 +24,13 @@ def plot_weights(
     factors=None,
     views=0,
     n_features: int = 5,
+    w_scaled: bool = False,
+    w_abs: bool = False,
     size=2,
     color="black",
     label_size=5,
-    x_offset=.03,
-    y_offset=.1,
+    x_offset=.01,
+    y_offset=.15,
     jitter=.01,
     line_width=.5,
     line_color="black",
@@ -55,7 +57,9 @@ def plot_weights(
     y_offset : optional
         Parameter to repel feature labels along the y axis (0.1 by default)
     """
-    w = model.get_weights(views=views, factors=factors, df=True).join(model.features_metadata.loc[:,["view"]])
+    w = model.get_weights(views=views, factors=factors, df=True, 
+                          scaled_values=w_scaled, absolute_values=w_abs) \
+             .join(model.features_metadata.loc[:,["view"]])
     w = w.rename_axis("feature").reset_index()
     # Make the table long for plotting
     wm = w.melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
@@ -78,7 +82,8 @@ def plot_weights(
         .set_index(["feature", "factor"]) \
         .join(wm.set_index(["feature", "factor"]), how="right") \
         .reset_index() \
-        .fillna({"to_label": False}) 
+        .fillna({"to_label": False}) \
+        .sort_values(["factor", "to_label"])
 
     # Sort factors
     wm["factor"] = wm["factor"].astype("category")
