@@ -22,7 +22,7 @@ sns.set_palette("Set2")
 def plot_weights(
     model: mofa_model,
     factors=None,
-    views=0,
+    views=None,
     n_features: int = 5,
     w_scaled: bool = False,
     w_abs: bool = False,
@@ -35,6 +35,9 @@ def plot_weights(
     line_width=.5,
     line_color="black",
     line_alpha=.2,
+    zero_line=False,
+    zero_linewidth=1,
+    ncols=4,
     **kwargs,
 ):
     """
@@ -70,6 +73,12 @@ def plot_weights(
     wm["abs_rank"] = wm.groupby("factor")["abs_value"].rank(ascending=False)
     wm = wm.sort_values(["factor", "abs_rank"], ascending=True)
 
+    # Sort factors
+    wm["factor"] = wm["factor"].astype("category")
+    wm["factor"] = wm["factor"].cat.reorder_categories(
+        sorted(wm["factor"].cat.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
+
     # Set default colour to black if none set
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
@@ -78,60 +87,78 @@ def plot_weights(
     features_to_label = model.get_top_features(factors=factors, views=views, n_features=n_features, df=True)
     features_to_label["to_label"] = True
     wm = features_to_label \
-        .loc[:,["feature", "factor", "to_label"]] \
-        .set_index(["feature", "factor"]) \
-        .join(wm.set_index(["feature", "factor"]), how="right") \
+        .loc[:,["feature", "view", "factor", "to_label"]] \
+        .set_index(["feature", "view", "factor"]) \
+        .join(wm.set_index(["feature", "factor", "view"]), how="right") \
         .reset_index() \
         .fillna({"to_label": False}) \
         .sort_values(["factor", "to_label"])
 
-    # Sort factors
-    wm["factor"] = wm["factor"].astype("category")
-    wm["factor"] = wm["factor"].cat.reorder_categories(
-        sorted(wm["factor"].cat.categories, key=lambda x: int(x.split("Factor")[1]))
-    )
+    # Figure out rows & columns for the grid with plots (one plot per view)
+    view_vars = wm.view.unique()
+    ncols = min(ncols, len(view_vars))
+    nrows = int(np.ceil(len(view_vars) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, 
+                             sharex=True, sharey=True,
+                             figsize=(ncols * rcParams['figure.figsize'][0],
+                                      nrows * rcParams['figure.figsize'][1]))
+    if nrows == 1:
+        axes = np.array(axes).reshape(1, -1)
 
-    # Construct the plot
-    g = sns.stripplot(data=wm, x='value', y='factor', jitter=jitter, size=size,
-                      hue="to_label", palette=["lightgrey", color], )
-    sns.despine(offset=10, trim=True, ax=g)
-    g.legend().remove()
+    for m, view in enumerate(view_vars):
+        ri = m // ncols
+        ci = m % ncols
 
-    # Label some points
-    for fi, factor in enumerate(wm.factor.cat.categories):
-    # for fi, factor_index in enumerate(wm.factor_index.unique()):
-        # Factor1, Factor10, Factor2, ... -> Factor1, Factor2, ...
-        # factor = f"Factor{factor_index}"
-        for sign_i in [1, -1]:
-            to_label = features_to_label[features_to_label.factor == factor].feature.tolist()
-            w_set = wm.query('factor == @factor & value * @sign_i > 0 & feature == @to_label').sort_values("value", ascending=False)
+        wm_view = wm.query('view == @view')
 
-            x_start_pos = w_set.value.max() + sign_i * x_offset
-            y_start_pos = fi - ((w_set.shape[0] - 1) // 2) * y_offset
-            y_prev = y_start_pos
+        # Construct the plot
+        g = sns.stripplot(data=wm_view, x='value', y='factor', jitter=jitter, size=size,
+                          hue="to_label", palette=["lightgrey", color], ax=axes[ri,ci])
+        sns.despine(offset=10, trim=True, ax=g)
+        g.legend().remove()
 
-            for i, row in enumerate(w_set.iterrows()):
-                name, point = row
-                y_loc = y_prev + y_offset if i != 0 else y_start_pos
+        # Label some points
+        for fi, factor in enumerate(wm_view.factor.cat.categories):
+            for sign_i in [1, -1]:
+                to_label = features_to_label.query('factor == @factor & view == @view').feature.tolist()
+                w_set = wm_view.query('factor == @factor & value * @sign_i > 0 & feature == @to_label & view == @view').sort_values("value", ascending=False)
 
-                g.annotate(point["feature"],
-                    xy=(point.value, fi),
-                    xytext=(x_start_pos, y_loc),
-                    arrowprops=dict(arrowstyle="-",
-                                    connectionstyle="arc3",
-                                    color=line_color,
-                                    alpha=line_alpha,
-                                    linewidth=line_width),
-                    horizontalalignment="left" if sign_i > 0 else "right",
-                    size=label_size,
-                    color="black",
-                    weight="regular",
-                    alpha=.9
-                )
-                y_prev = y_loc
+                x_start_pos = w_set.value.max() + sign_i * x_offset
+                y_start_pos = fi - ((w_set.shape[0] - 1) // 2) * y_offset
+                y_prev = y_start_pos
 
-    # Set plot axes labels
-    g.set(ylabel="", xlabel="Feature weight")
+                for i, row in enumerate(w_set.iterrows()):
+                    name, point = row
+                    y_loc = y_prev + y_offset if i != 0 else y_start_pos
+
+                    g.annotate(point["feature"],
+                        xy=(point.value, fi),
+                        xytext=(x_start_pos, y_loc),
+                        arrowprops=dict(arrowstyle="-",
+                                        connectionstyle="arc3",
+                                        color=line_color,
+                                        alpha=line_alpha,
+                                        linewidth=line_width),
+                        horizontalalignment="left" if sign_i > 0 else "right",
+                        size=label_size,
+                        color="black",
+                        weight="regular",
+                        alpha=.9
+                    )
+                    y_prev = y_loc
+
+        # Set plot axes labels
+        g.set(ylabel="", xlabel="Feature weight")
+
+        if zero_line:
+            axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
+
+    # Remove unused axes
+    for i in range(len(view_vars), ncols * nrows):
+        ri = i // ncols
+        ci = i % ncols
+        fig.delaxes(axes[ri,ci])
+
 
     return g
 
@@ -892,7 +919,6 @@ def plot_factors_scatter(
                     g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
 
             if zero_line:
-                print('zero line')
                 axes[ri,ci].axhline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
                 axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
 
