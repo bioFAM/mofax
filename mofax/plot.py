@@ -1186,6 +1186,7 @@ def plot_factors_umap(
     spread=1,
     random_state=None,
     umap_kwargs={},
+    ncols=4,
     **kwargs,
 ):
     """
@@ -1223,7 +1224,14 @@ def plot_factors_umap(
         random_state parameter for UMAP
     umap_kwargs : optional
         Additional arguments to umap.UMAP()
+    ncols : optional
+        Number of columns if multiple colours are defined (4 by default)
     """
+
+    # Process input arguments
+    if group_label == 'group' and not color:
+        color = 'group'
+    color_vars = [color] if not color or isinstance(color, str) else color
 
     if embedding is None:
         embedding = umap(model.get_factors(factors=factors, groups=groups, df=True),
@@ -1234,23 +1242,16 @@ def plot_factors_umap(
 
     x, y, *_ = embedding.columns
 
-    # Assign a group to every sample (cell) if it is provided
-    if group_label is None:
-        group_label = "group"
-    groups_df = model.samples_metadata.loc[:,[group_label]]
+    # Add group and colour information
+    vars = [group_label, *color_vars]
+    if any([not(not(i)) for i in vars]):
+        meta = model.fetch_values(variables=vars)
+        embedding = embedding.rename_axis("sample").reset_index()
+        embedding = embedding.set_index("sample").join(meta).reset_index()
 
-    embedding = embedding.rename_axis("sample").reset_index()
-    embedding = embedding.set_index("sample").join(groups_df).reset_index()
-    grouping_var = groups_df.columns[0]
-
-    # Assign colour to every sample (cell) if colouring by feature expression
-    if color is None:
-        color_var = grouping_var
-    else:
-        color_var = color
-        color_df = model.get_data(features=color, df=True)
-        embedding = embedding.set_index("sample").join(color_df).reset_index()
-        embedding = embedding.sort_values(color_var)
+    # Subset groups (incl. custom groups of samples)
+    if group_label and groups is not None:
+        embedding = embedding[embedding[group_label].isin(groups)]
 
     # Define plot axes labels
     x_factor_label = f"Factor{x+1}" if isinstance(x, int) else x
@@ -1260,16 +1261,60 @@ def plot_factors_umap(
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
-    g = sns.scatterplot(
-        x=x,
-        y=y,
-        data=embedding,
-        linewidth=linewidth,
-        s=size,
-        hue=color_var,
-        legend=legend,
-        **kwargs,
-    )
+    # Figure out rows & columns for the grid with plots
+    ncols = min(ncols, len(color_vars))
+    nrows = int(np.ceil(len(color_vars) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, 
+                             sharex=True, sharey=True,
+                             figsize=(ncols * rcParams['figure.figsize'][0],
+                                      nrows * rcParams['figure.figsize'][1]))
+    if ncols == 1:
+        axes = np.array(axes).reshape(-1, 1)
+    if nrows == 1:
+        axes = np.array(axes).reshape(1, -1)
+
+    for i, color_var in enumerate(color_vars):
+        ri = i // ncols
+        ci = i % ncols
+
+        g = sns.scatterplot(
+            x=x,
+            y=y,
+            data=embedding,
+            linewidth=linewidth,
+            s=size,
+            hue=color_var,
+            legend=legend,
+            ax=axes[ri,ci],
+            **kwargs,
+        )
+        sns.despine(offset=10, trim=True, ax=g)
+        g.set(title=color_var)
+
+        if legend and color_var:
+            if is_numeric_dtype(z[color_var]):
+                means = embedding.groupby(group_label)[color_var].mean() if group_label else embedding[color_var].mean()
+                norm = plt.Normalize(means.min(), means.max())
+                cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
+                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                sm.set_array([])
+                try:
+                    g.figure.colorbar(sm, ax=axes[ri, ci])
+                    g.get_legend().remove()
+                except Exception:
+                    warn("Cannot make a proper colorbar")
+            else:
+                g.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., prop=legend_prop)
+
+
+    # Remove unused axes
+    for i in range(len(color_vars), ncols * nrows):
+        ri = i // ncols
+        ci = i % ncols
+        fig.delaxes(axes[ri,ci])
+
+    plt.tight_layout()
+
     return g
 
 
