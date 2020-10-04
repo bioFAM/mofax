@@ -1179,13 +1179,13 @@ def plot_factors_umap(
     color=None,
     linewidth=0,
     size=5,
-    legend=False,
-    legend_loc="best",
-    legend_prop=None,
     n_neighbors=10,
     spread=1,
     random_state=None,
     umap_kwargs={},
+    legend=True,
+    legend_prop=None,
+    palette=None,
     ncols=4,
     **kwargs,
 ):
@@ -1210,12 +1210,6 @@ def plot_factors_umap(
         Linewidth argument for dots (default is 0)
     size : optional
         Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
-    legend : optional bool
-        If to show the legend (e.g. colours matching groups)
-    legend_loc : optional
-        Legend location (e.g. 'upper left', 'center', or 'best')
-    legend_prop : optional
-        The font properties of the legend
     n_neighbors : optional
         n_neighbors parameter for UMAP
     spread : optional
@@ -1224,6 +1218,13 @@ def plot_factors_umap(
         random_state parameter for UMAP
     umap_kwargs : optional
         Additional arguments to umap.UMAP()
+    legend : optional bool
+        If to show the legend (e.g. colours matching groups)
+    legend_prop : optional
+        The font properties of the legend
+    palette : optional
+        cmap describing colours, default is None (cubehelix)
+        Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
     ncols : optional
         Number of columns if multiple colours are defined (4 by default)
     """
@@ -1261,6 +1262,8 @@ def plot_factors_umap(
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
+    legend_str = 'brief' if (legend and color) else False
+
     # Figure out rows & columns for the grid with plots
     ncols = min(ncols, len(color_vars))
     nrows = int(np.ceil(len(color_vars) / ncols))
@@ -1284,7 +1287,8 @@ def plot_factors_umap(
             linewidth=linewidth,
             s=size,
             hue=color_var,
-            legend=legend,
+            legend=legend_str,
+            palette=palette,
             ax=axes[ri,ci],
             **kwargs,
         )
@@ -1292,7 +1296,7 @@ def plot_factors_umap(
         g.set(title=color_var)
 
         if legend and color_var:
-            if is_numeric_dtype(z[color_var]):
+            if is_numeric_dtype(embedding[color_var]):
                 means = embedding.groupby(group_label)[color_var].mean() if group_label else embedding[color_var].mean()
                 norm = plt.Normalize(means.min(), means.max())
                 cmap = palette if palette is not None else sns.cubehelix_palette(as_cmap=True)
