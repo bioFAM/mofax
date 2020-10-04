@@ -874,7 +874,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
 # Utility functions
 
 
-def umap(data, n_neighbors=10, spread=1):
+def umap(data, n_neighbors=10, spread=1, random_state=None, **kwargs):
     """
     Run UMAP on a provided matrix or data frame
 
@@ -889,7 +889,7 @@ def umap(data, n_neighbors=10, spread=1):
     """
     import umap
 
-    embedding = umap.UMAP(n_neighbors=n_neighbors, spread=spread).fit_transform(data)
+    embedding = umap.UMAP(n_neighbors=n_neighbors, spread=spread, random_state=random_state, **kwargs).fit_transform(data)
 
     if isinstance(data, pd.DataFrame):
         embedding = pd.DataFrame(embedding)

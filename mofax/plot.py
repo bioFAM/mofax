@@ -958,6 +958,7 @@ def plot_factors_scatter(
 
     return g
 
+plot_factors = plot_factors_scatter
 
 def plot_factors_violin(
     model: mofa_model,
@@ -1174,7 +1175,6 @@ def plot_factors_umap(
     embedding: pd.DataFrame = None,
     factors: Optional[Union[int, List[int]]] = None,
     groups=None,
-    groups_df=None,
     group_label: Optional[str] = None,
     color=None,
     linewidth=0,
@@ -1184,6 +1184,8 @@ def plot_factors_umap(
     legend_prop=None,
     n_neighbors=10,
     spread=1,
+    random_state=None,
+    umap_kwargs={},
     **kwargs,
 ):
     """
@@ -1199,8 +1201,6 @@ def plot_factors_umap(
         Index of a factor (or indices of factors) to use (all factors by default)
     groups : optional
         Subset of groups to consider
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
     group_label : optional
         Sample (cell) metadata column to be used as group assignment
     color : optional
@@ -1219,21 +1219,25 @@ def plot_factors_umap(
         n_neighbors parameter for UMAP
     spread : optional
         spread parameter for UMAP
+    random_state : optional
+        random_state parameter for UMAP
+    umap_kwargs : optional
+        Additional arguments to umap.UMAP()
     """
 
     if embedding is None:
-        embedding = umap(model.get_factors(factors=factors, groups=groups))
+        embedding = umap(model.get_factors(factors=factors, groups=groups, df=True),
+                                           n_neighbors=n_neighbors, spread=spread, random_state=random_state, 
+                                           **umap_kwargs)
         embedding.columns = ["UMAP1", "UMAP2"]
-        embedding.index = model.get_samples().sample
+        embedding.index = model.get_samples()['sample'].values
 
     x, y, *_ = embedding.columns
 
     # Assign a group to every sample (cell) if it is provided
-    if groups_df is None and group_label is None:
+    if group_label is None:
         group_label = "group"
-
-    if groups_df is None:
-        groups_df = model.samples_metadata.loc[:,[group_label]]
+    groups_df = model.samples_metadata.loc[:,[group_label]]
 
     embedding = embedding.rename_axis("sample").reset_index()
     embedding = embedding.set_index("sample").join(groups_df).reset_index()
@@ -1256,24 +1260,23 @@ def plot_factors_umap(
     if "c" not in kwargs and "color" not in kwargs:
         kwargs["color"] = "black"
 
-    if groups_df is not None:
-        g = sns.scatterplot(
-            x=x,
-            y=y,
-            data=embedding,
-            linewidth=linewidth,
-            s=size,
-            hue=color_var,
-            legend=legend,
-            **kwargs,
-        )
+    g = sns.scatterplot(
+        x=x,
+        y=y,
+        data=embedding,
+        linewidth=linewidth,
+        s=size,
+        hue=color_var,
+        legend=legend,
+        **kwargs,
+    )
     return g
 
 
 def plot_factors_correlation(
     model: mofa_model,
     factors: Optional[Union[int, List[int]]] = None,
-    groups=None,
+    groups: Optional[Union[int, List[int], str, List[str]]] = None,
     covariates=None,
     pvalues=False,
     linewidths=0,
