@@ -36,7 +36,7 @@ def plot_weights(
     line_color="black",
     line_alpha=.2,
     zero_line=False,
-    zero_linewidth=1,
+    zero_line_width=1,
     ncols=4,
     **kwargs,
 ):
@@ -47,18 +47,40 @@ def plot_weights(
     ----------
     model : mofa_model
         Factor model
-    factors : optional
+    factors : str or int or list of str or None
         Factors to use (default is all)
-    views : options
+    views : str or int or list of str or None
         The views to get the factors weights for (first view by default)
-    n_features : optional
+    n_features : int
         Number of features to label with most positive and most negative weights
-    label_size : optional
+    w_scaled : bool
+        If scale weights to unite variance (False by default)
+    w_abs : bool
+        If plot absolute weight values (False by default)
+    size : float
+        Dot size (2 by default)
+    color : str
+        Colour for the labelled dots (black by default)
+    label_size : int or float
         Font size of feature labels (default is 5)
-    x_offset : optional
+    x_offset : int or float
         Offset the feature labels from the left/right side (by 0.03 points by default)
-    y_offset : optional
+    y_offset : int or float
         Parameter to repel feature labels along the y axis (0.1 by default)
+    jitter : bool
+        Jitter dots per factors (True by default)
+    line_width : int or float
+        Width of the lines connecting labels with dots (0.5 by default)
+    line_color : str
+        Color of the lines connecting labels with dots (black by default)
+    line_alpha : float
+        Alpha level for the lines connecting labels with dots (0.2 by default)
+    zero_line : bool
+        If to plot a dotted line at zero (False by default)
+    zero_line_width : int or float
+        Width of the line at 0 (1 by default)
+    ncols : int
+        Number of columns in the grid of multiple plots, one plot per view (4 by default)
     """
     w = model.get_weights(views=views, factors=factors, df=True, 
                           scaled_values=w_scaled, absolute_values=w_abs) \
