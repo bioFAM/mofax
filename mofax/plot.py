@@ -175,7 +175,7 @@ def plot_weights(
         g.set(ylabel="", xlabel="Feature weight", title=view)
 
         if zero_line:
-            axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
+            axes[ri,ci].axvline(0, ls='--', color="lightgrey", linewidth=zero_line_width, zorder=0)
 
     # Remove unused axes
     for i in range(len(view_vars), ncols * nrows):
@@ -1032,7 +1032,6 @@ def plot_factors_violin(
         color = 'group'
     color_vars = [color] if not color or isinstance(color, str) else color
 
-    assert not (len(color_vars) > 1 and dist), "When plotting distributions, only one color can be provided at the moment"
     assert violins or dots, "Either violins=True or dots=True"
 
     # Get factors
