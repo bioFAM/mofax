@@ -192,6 +192,7 @@ def plot_weights_ranked(
     factor="Factor1",
     view=0,
     n_features: int = 10,
+    size : int = 25,
     label_size=5,
     x_rank_offset=10,
     x_rank_offset_neg=0,
@@ -212,6 +213,8 @@ def plot_weights_ranked(
         The view to get the factors weights for (first view by default)
     n_features : optional
         Number of features to label with most positive and most negative weights
+    size : int
+        Dit size for labelled features (default is 25)
     label_size : optional
         Font size of feature labels (default is 5)
     x_rank_offset : optional
@@ -253,7 +256,7 @@ def plot_weights_ranked(
         y="value",
         data=w[w["abs_rank"] < n_features],
         linewidth=0.2,
-        s=25,
+        s=size,
         alpha=0.75,
         **kwargs,
     )
