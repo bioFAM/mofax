@@ -145,9 +145,10 @@ def plot_weights(
         for fi, factor in enumerate(wm_view.factor.cat.categories):
             for sign_i in [1, -1]:
                 to_label = features_to_label.query('factor == @factor & view == @view').feature.tolist()
-                w_set = wm_view.query('factor == @factor & value * @sign_i > 0 & feature == @to_label & view == @view').sort_values("value", ascending=False)
+                w_set = wm_view.query('factor == @factor & value * @sign_i > 0 & feature == @to_label & view == @view') \
+                               .sort_values("abs_value", ascending=False)
 
-                x_start_pos = w_set.value.max() + sign_i * x_offset
+                x_start_pos = sign_i * (w_set.abs_value.max() + x_offset)
                 y_start_pos = fi - ((w_set.shape[0] - 1) // 2) * y_offset
                 y_prev = y_start_pos
 

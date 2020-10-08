@@ -83,7 +83,7 @@ class mofa_model:
                 )
                 samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
 
-                self.samples_metadata = pd.concat([self._samples_metadata, samples_metadata], axis=1)
+                self.samples_metadata = pd.concat([self._samples_metadata.reset_index(drop=True), samples_metadata.reset_index(drop=True)], axis=1)
 
                 # Decode objects as UTF-8 strings
                 for column in self.samples_metadata.columns:
@@ -117,7 +117,7 @@ class mofa_model:
                 
                 features_metadata = pd.concat(features_metadata_dict, axis=0)
                 
-                self.features_metadata = pd.concat([self._features_metadata, features_metadata.reset_index()], axis=1)
+                self.features_metadata = pd.concat([self._features_metadata.reset_index(drop=True), features_metadata.reset_index(drop=True)], axis=1)
 
                 # Decode objects as UTF-8 strings
                 for column in self.features_metadata.columns:
