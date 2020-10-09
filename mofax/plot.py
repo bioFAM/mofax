@@ -824,7 +824,7 @@ def plot_factors_scatter(
                 **kwargs,
             )
             sns.despine(offset=10, trim=True, ax=g)
-            g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value")
+            g.set(xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value", title=color_var)
 
             if legend and color_var:
                 if is_numeric_dtype(z[color_var]):
