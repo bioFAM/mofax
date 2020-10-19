@@ -948,6 +948,8 @@ def plot_factors_violin(
     if group_label and groups is not None:
         z = z[z[group_label].isin(groups)]
 
+    z = z.sort_values(by="factor", key=lambda x: x.str.lstrip("Factor").astype(int))
+
     # Set default colour to black if none set
     if "c" not in kwargs and not color:
         kwargs["color"] = "black"
