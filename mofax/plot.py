@@ -974,11 +974,11 @@ def plot_factors_violin(
         if zero_line:
             axes[ri,ci].axhline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
         if violins:
-            g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var),
+            g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor"),
                                hue=color_var, linewidth=linewidth, s=size, 
                                legend=legend_str, palette=palette, inner=None, ax=axes[ri,ci])
         if dots:
-            g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var) if color_var else z,
+            g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor"),
                               hue=color_var, linewidth=linewidth, s=size, 
                               palette=palette, dodge=True, ax=axes[ri,ci], **kwargs)
         sns.despine(offset=10, trim=True, ax=g)
