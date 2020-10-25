@@ -948,7 +948,8 @@ def plot_factors_violin(
     if group_label and groups is not None:
         z = z[z[group_label].isin(groups)]
 
-    z = z.sort_values(by="factor", key=lambda x: x.str.lstrip("Factor").astype(int))
+    z["factor_idx"] = z.factor.str.lstrip("Factor").astype(int)
+    z = z.sort_values(by="factor_idx")
 
     # Set default colour to black if none set
     if "c" not in kwargs and not color:
@@ -974,11 +975,11 @@ def plot_factors_violin(
         if zero_line:
             axes[ri,ci].axhline(0, ls='--', color="lightgrey", linewidth=zero_linewidth, zorder=0)
         if violins:
-            g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor"),
+            g = sns.violinplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor_idx"),
                                hue=color_var, linewidth=linewidth, s=size, 
                                legend=legend_str, palette=palette, inner=None, ax=axes[ri,ci])
         if dots:
-            g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor"),
+            g = sns.stripplot(x=x, y=y, data=z.sort_values(color_var).sort_values("factor_idx"),
                               hue=color_var, linewidth=linewidth, s=size, 
                               palette=palette, dodge=True, ax=axes[ri,ci], **kwargs)
         sns.despine(offset=10, trim=True, ax=g)
