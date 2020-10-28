@@ -515,6 +515,140 @@ def plot_weights_heatmap(
     return cg
 
 
+def plot_weights_dotplot(
+    model: mofa_model,
+    factors: Union[int, List[int]] = None,
+    view=0,
+    n_features: int = None,
+    w_threshold: float = None,
+    w_abs: bool = False,
+    only_positive: bool = False,
+    only_negative: bool = False,
+    palette = None,
+    size: int = 30,
+    linewidth: int = 1,
+    xticklabels_size=8,
+    yticklabels_size=5,
+    **kwargs,
+):
+    """
+    Plot weights (loadings) for top features in a heatmap
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    factors : optional
+        Factors to use (all factors in the model by default)
+    view : options
+        The view to get the factors weights for (first view by default)
+    n_features : optional
+        Number of features for each factor by their absolute value (5 by default)
+    w_threshold : optional
+        Absolute weight threshold for a feature to plot (no threshold by default)
+    w_abs : optional
+        If to plot absolute weight values
+    only_positive : optional
+        If to plot only positive weights
+    only_negative : optional
+        If to plot only negative weights
+    palette : optional
+        Color map (blue-to-red divergent palette with by default)
+    size : optional
+        Dot size (default in 30)
+    lienwidth : optional
+        Dot outline width (default is 1)
+    xticklabels_size : optional
+        Font size for features labels (default is 10)
+    yticklabels_size : optional
+        Font size for factors labels (default is None)
+    """
+
+    # Set defaults
+    n_features_default = 5
+    if factors is None:
+        factors = list(range(model.nfactors))
+    if palette is None:
+        palette = sns.diverging_palette(240, 10, n=9, as_cmap=True)
+
+    # Fetch weights for the relevant factors
+    w = (
+        model.get_weights(views=view, factors=factors, df=True, absolute_values=w_abs)
+        .rename_axis("feature")
+        .reset_index()
+    )
+    wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
+    wm = wm.assign(value_abs=lambda x: x.value.abs())
+    wm["factor"] = wm["factor"].astype("category")
+
+    if only_positive and only_negative:
+        print("Please specify either only_positive or only_negative")
+        sys.exit(1)
+    elif only_positive:
+        wm = wm[wm.value > 0]
+    elif only_negative:
+        wm = wm[wm.value < 0]
+
+    
+    # Fix factors order
+    wm.factor = wm.factor.astype("category")
+    wm.factor = wm.factor.cat.reorder_categories(
+        sorted(wm.factor.cat.categories, key=lambda x: int(x.split("Factor")[1]))
+    )
+    wm.sort_values("factor")
+
+    if n_features is None and w_threshold is not None:
+        features = wm[wm.value_abs >= w_threshold].feature.unique()
+    else:
+        if n_features is None:
+            n_features = n_features_default
+        # Get a subset of features
+        wm_g = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        if w_threshold is None:
+            features = wm_g.head(n_features).feature.unique()
+        else:
+            features = wm_g[wm_g.value_abs >= w_threshold].head(n_features).feature.unique()
+
+    
+    wm = wm[wm.feature.isin(features)]
+    
+    # Fix features order
+    wm.feature = wm.feature.astype("category")
+    wm.feature = wm.feature.cat.reorder_categories(features)
+    
+    wm = wm.sort_values(["factor", "feature"])
+
+    g = sns.scatterplot(
+        data=wm,
+        x="factor",
+        y="feature",
+        hue="value",
+        linewidth=linewidth,
+        s=size,
+        palette=palette,
+        **kwargs,
+    )
+
+    norm = plt.Normalize(wm.value.min(), wm.value.max())
+    cmap = palette if palette is not None else sns.diverging_palette(220, 20, as_cmap=True)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    try:
+        g.figure.colorbar(sm)
+        g.get_legend().remove()
+    except Exception:
+        warn("Cannot make a proper colorbar")
+    
+    plt.draw()
+    
+    g.set_xticklabels(g.get_xticklabels(), rotation=90, size=xticklabels_size)
+    g.set_yticklabels(g.get_yticklabels(), size=yticklabels_size)
+
+
+    return g
+
+
+
 def plot_weights_scatter(
     model: mofa_model,
     x="Factor1",
