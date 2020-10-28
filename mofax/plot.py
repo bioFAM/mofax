@@ -529,6 +529,7 @@ def plot_weights_dotplot(
     linewidth: int = 1,
     xticklabels_size=8,
     yticklabels_size=5,
+    ncols=1,
     **kwargs,
 ):
     """
@@ -562,6 +563,8 @@ def plot_weights_dotplot(
         Font size for features labels (default is 10)
     yticklabels_size : optional
         Font size for factors labels (default is None)
+    ncols : optional
+        Number of columns when plotting multiple views (default is 1)
     """
 
     # Set defaults
@@ -575,9 +578,10 @@ def plot_weights_dotplot(
     w = (
         model.get_weights(views=view, factors=factors, df=True, absolute_values=w_abs)
         .rename_axis("feature")
+        .join(model.features_metadata.loc[:,["view"]])
         .reset_index()
     )
-    wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
+    wm = w.melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
     wm = wm.assign(value_abs=lambda x: x.value.abs())
     wm["factor"] = wm["factor"].astype("category")
 
@@ -589,7 +593,7 @@ def plot_weights_dotplot(
     elif only_negative:
         wm = wm[wm.value < 0]
 
-    
+
     # Fix factors order
     wm.factor = wm.factor.astype("category")
     wm.factor = wm.factor.cat.reorder_categories(
@@ -603,7 +607,7 @@ def plot_weights_dotplot(
         if n_features is None:
             n_features = n_features_default
         # Get a subset of features
-        wm_g = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        wm_g = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(["factor", "view"])
         if w_threshold is None:
             features = wm_g.head(n_features).feature.unique()
         else:
@@ -618,32 +622,63 @@ def plot_weights_dotplot(
     
     wm = wm.sort_values(["factor", "feature"])
 
-    g = sns.scatterplot(
-        data=wm,
-        x="factor",
-        y="feature",
-        hue="value",
-        linewidth=linewidth,
-        s=size,
-        palette=palette,
-        **kwargs,
-    )
+    # Figure out rows & columns for the grid with plots (one plot per view)
+    view_vars = wm.view.unique()
+    ncols = min(ncols, len(view_vars))
+    nrows = int(np.ceil(len(view_vars) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, 
+                             sharex=True, sharey=False,
+                             figsize=(ncols * rcParams['figure.figsize'][0],
+                                      nrows * rcParams['figure.figsize'][1]))
+    if ncols == 1:
+        axes = np.array(axes).reshape(-1, 1)
+    if nrows == 1:
+        axes = np.array(axes).reshape(1, -1)
 
-    norm = plt.Normalize(wm.value.min(), wm.value.max())
-    cmap = palette if palette is not None else sns.diverging_palette(220, 20, as_cmap=True)
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    try:
-        g.figure.colorbar(sm)
-        g.get_legend().remove()
-    except Exception:
-        warn("Cannot make a proper colorbar")
-    
-    plt.draw()
-    
-    g.set_xticklabels(g.get_xticklabels(), rotation=90, size=xticklabels_size)
-    g.set_yticklabels(g.get_yticklabels(), size=yticklabels_size)
+    for m, view in enumerate(view_vars):
+        ri = m // ncols
+        ci = m % ncols
 
+        wm_view = wm.query('view == @view')
+
+        # Construct the plot
+        g = sns.scatterplot(
+            data=wm_view,
+            x="factor",
+            y="feature",
+            hue="value",
+            linewidth=linewidth,
+            s=size,
+            palette=palette,
+            ax=axes[ri,ci],
+            **kwargs,
+        )
+        sns.despine(offset=10, trim=True, ax=g)
+        g.legend().remove()
+
+        norm = plt.Normalize(wm_view.value.min(), wm_view.value.max())
+        cmap = palette if palette is not None else sns.diverging_palette(220, 20, as_cmap=True)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        try:
+            g.figure.colorbar(sm, ax=axes[ri,ci])
+            g.get_legend().remove()
+        except Exception:
+            warn("Cannot make a proper colorbar")
+        
+        plt.draw()
+
+        g.set_title(view)
+        
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, size=xticklabels_size)
+        g.set_yticklabels(g.get_yticklabels(), size=yticklabels_size)
+
+
+    # Remove unused axes
+    for i in range(len(view_vars), ncols * nrows):
+        ri = i // ncols
+        ci = i % ncols
+        fig.delaxes(axes[ri,ci])
 
     return g
 
