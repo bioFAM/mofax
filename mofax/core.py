@@ -22,7 +22,7 @@ class mofa_model:
         self.filename = path.basename(filepath)
         self.model = h5py.File(filepath, mode)
 
-        self.data = self.model["data"] if 'data' in self.model else None
+        self.data = self.model["data"] if "data" in self.model else None
 
         self.samples = {
             g: np.array(self.model["samples"][g]).astype("str")
@@ -33,8 +33,8 @@ class mofa_model:
             for m in self.model["features"]
         }
 
-        self.groups = list(self.model["samples"].keys())
-        self.views = list(self.model["features"].keys())
+        self.groups = list(np.array(self.model["groups"]["groups"]).astype(str))
+        self.views = list(np.array(self.model["views"]["views"]).astype(str))
 
         self.expectations = self.model["expectations"]
         self.factors = self.model["expectations"]["Z"]
@@ -48,7 +48,7 @@ class mofa_model:
         else:
             self.shape = (
                 sum(self.factors[group].shape[0] for group in self.groups),
-                sum(self.weights[view].shape[0] for view in self.views)
+                sum(self.weights[view].shape[0] for view in self.views),
             )
         self.nfactors = self.model["expectations"]["Z"][self.groups[0]].shape[0]
         self.nviews = len(self.views)
@@ -56,13 +56,14 @@ class mofa_model:
 
         if "model_options" in self.model:
             self.likelihoods = (
-                np.array(self.model["model_options"]["likelihoods"]).astype("str").tolist()
+                np.array(self.model["model_options"]["likelihoods"])
+                .astype("str")
+                .tolist()
             )
 
         if "training_opts" in self.model:
             # TODO: Update according to the latest API
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
-
 
         self._samples_metadata = pd.DataFrame(
             [
@@ -72,30 +73,49 @@ class mofa_model:
             ],
             columns=["sample", "group"],
         )
-        if 'samples_metadata' in self.model:
-            if len(list(self.model['samples_metadata'][self.groups[0]].keys())) > 0:
+        if "samples_metadata" in self.model:
+            if len(list(self.model["samples_metadata"][self.groups[0]].keys())) > 0:
                 samples_metadata = pd.concat(
                     [
-                        pd.concat([pd.Series(self.model['samples_metadata'][g][k]) for k in self.model['samples_metadata'][g].keys()], axis=1)
+                        pd.concat(
+                            [
+                                pd.Series(self.model["samples_metadata"][g][k])
+                                for k in self.model["samples_metadata"][g].keys()
+                            ],
+                            axis=1,
+                        )
                         for g in self.groups
                     ],
-                    axis=0
+                    axis=0,
                 )
-                samples_metadata.columns = list(self.model['samples_metadata'][self.groups[0]].keys())
+                samples_metadata.columns = list(
+                    self.model["samples_metadata"][self.groups[0]].keys()
+                )
 
-                self.samples_metadata = pd.concat([self._samples_metadata.reset_index(drop=True), samples_metadata.reset_index(drop=True)], axis=1)
+                if "group" in samples_metadata.columns:
+                    del samples_metadata["group"]
+                if "sample" in samples_metadata.columns:
+                    del samples_metadata["sample"]
+
+                self.samples_metadata = pd.concat(
+                    [
+                        self._samples_metadata.reset_index(drop=True),
+                        samples_metadata.reset_index(drop=True),
+                    ],
+                    axis=1,
+                )
 
                 # Decode objects as UTF-8 strings
                 for column in self.samples_metadata.columns:
                     if self.samples_metadata[column].dtype == "object":
                         try:
-                            self.samples_metadata[column] = [i.decode() for i in self.samples_metadata[column].values]
+                            self.samples_metadata[column] = [
+                                i.decode() for i in self.samples_metadata[column].values
+                            ]
                         except (UnicodeDecodeError, AttributeError):
                             pass
-                        
 
         self._samples_metadata = self._samples_metadata.set_index("sample")
-        
 
         self.features_metadata = pd.DataFrame(
             [
@@ -105,37 +125,60 @@ class mofa_model:
             ],
             columns=["feature", "view"],
         )
-        if 'features_metadata' in self.model:
-            if len(list(self.model['features_metadata'][self.views[0]].keys())) > 0:
+        if "features_metadata" in self.model:
+            if len(list(self.model["features_metadata"][self.views[0]].keys())) > 0:
                 features_metadata_dict = {
-                        m:pd.concat([pd.Series(self.model['features_metadata'][m][k]) for k in self.model['features_metadata'][m].keys()], axis=1)
-                        for m in self.views
-                    }
+                    m: pd.concat(
+                        [
+                            pd.Series(self.model["features_metadata"][m][k])
+                            for k in self.model["features_metadata"][m].keys()
+                        ],
+                        axis=1,
+                    )
+                    for m in self.views
+                }
 
                 for m in features_metadata_dict.keys():
-                    features_metadata_dict[m].columns = list(self.model['features_metadata'][m].keys())
-                
+                    features_metadata_dict[m].columns = list(
+                        self.model["features_metadata"][m].keys()
+                    )
+
                 features_metadata = pd.concat(features_metadata_dict, axis=0)
-                
-                self.features_metadata = pd.concat([self._features_metadata.reset_index(drop=True), features_metadata.reset_index(drop=True)], axis=1)
+
+                if "view" in features_metadata.columns:
+                    del features_metadata["view"]
+                if "feature" in features_metadata.columns:
+                    del features_metadata["feature"]
+
+                self.features_metadata = pd.concat(
+                    [
+                        self._features_metadata.reset_index(drop=True),
+                        features_metadata.reset_index(drop=True),
+                    ],
+                    axis=1,
+                )
 
                 # Decode objects as UTF-8 strings
                 for column in self.features_metadata.columns:
                     if self.features_metadata[column].dtype == "object":
                         try:
-                            self.features_metadata[column] = [i.decode() for i in self.features_metadata[column].values]
+                            self.features_metadata[column] = [
+                                i.decode()
+                                for i in self.features_metadata[column].values
+                            ]
                         except (UnicodeDecodeError, AttributeError):
                             pass
 
         self.features_metadata = self.features_metadata.set_index("feature")
-        
 
     def __repr__(self):
-        return(f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
+        return f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
 Features: {self.shape[1]}
 Groups: {', '.join([f"{k} ({len(v)})" for k, v in self.samples.items()])}
-Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
+Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}
+Factors: {self.nfactors}
+Expectations: {', '.join(self.expectations.keys())}"""
 
     # Alias samples as cells
     @property
@@ -149,7 +192,9 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
     @samples_metadata.setter
     def samples_metadata(self, metadata):
         if len(metadata) != self.shape[0]:
-            raise ValueError(f"Length of provided metadata {len(metadata)} does not match the length {self.shape[0]} of the data.")
+            raise ValueError(
+                f"Length of provided metadata {len(metadata)} does not match the length {self.shape[0]} of the data."
+            )
         self._samples_metadata = metadata
 
     @property
@@ -159,7 +204,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
     @cells_metadata.setter
     def cells_metadata(self, metadata):
         self.samples_metadata = metadata
-    
+
     @property
     def metadata(self):
         return self.samples_metadata
@@ -175,7 +220,9 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
     @features_metadata.setter
     def features_metadata(self, metadata):
         if len(metadata) != self.shape[1]:
-            raise ValueError(f"Length of provided metadata {len(metadata)} does not match the length {self.shape[1]} of the data.")
+            raise ValueError(
+                f"Length of provided metadata {len(metadata)} does not match the length {self.shape[1]} of the data."
+            )
         self._features_metadata = metadata
 
     def close(self):
@@ -236,7 +283,6 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         cells.columns = ["group", "cell"]
         return cells
 
-
     def get_features(self, views=None):
         """
         Get the features metadata table (feature name and its respective view)
@@ -268,7 +314,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         only_positive: bool = False,
         only_negative: bool = False,
         per_view: bool = True,
-        df: bool = False
+        df: bool = False,
     ):
         """
         Fetch a list of top feature names
@@ -297,19 +343,23 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         views = self.__check_views(views)
         findices, factors = self.__check_factors(factors, unique=True)
         n_features_default = 10
-        
+
         # Fetch weights for the relevant factors
         w = (
-            self.get_weights(views=views, factors=factors, df=True, absolute_values=absolute_values)
+            self.get_weights(
+                views=views, factors=factors, df=True, absolute_values=absolute_values
+            )
             .rename_axis("feature")
             .reset_index()
         )
         wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
         wm = wm.assign(value_abs=lambda x: x.value.abs())
         wm["factor"] = wm["factor"].astype("category")
-        wm = wm.set_index("feature") \
-               .join(self.features_metadata.loc[:,["view"]], how="left") \
-               .reset_index()
+        wm = (
+            wm.set_index("feature")
+            .join(self.features_metadata.loc[:, ["view"]], how="left")
+            .reset_index()
+        )
 
         if only_positive and only_negative:
             print("Please specify either only_positive or only_negative")
@@ -326,15 +376,19 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
                 n_features = n_features_default
             # Get a subset of features
             if per_view:
-                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(["factor", "view"])
+                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
+                    ["factor", "view"]
+                )
             else:
-                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(["factor", "view"])
+                wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
+                    ["factor", "view"]
+                )
             # Use clip threshold if provided
             if clip_threshold is None:
                 wm = wm.head(n_features).reset_index()
             else:
                 wm = wm[wm.value_abs >= clip_threshold].head(n_features)
-        
+
         if df:
             return wm
 
@@ -473,7 +527,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
 
         Parameters
         ----------
-        features : str 
+        features : str
             Features, metadata columns, or factors (FactorN) to fetch
         """
         # If a sole variable name is used, wrap it in a list
@@ -499,11 +553,13 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             else:
                 var_features.append(var)
 
-
         var_list = list()
-        if len(var_meta) > 0: var_list.append(self.metadata[var_meta])
-        if len(var_features) > 0: var_list.append(self.get_data(var_features, df=True))
-        if len(var_factors) > 0: var_list.append(self.get_factors(factors=var_factors, df=True))
+        if len(var_meta) > 0:
+            var_list.append(self.metadata[var_meta])
+        if len(var_features) > 0:
+            var_list.append(self.get_data(var_features, df=True))
+        if len(var_factors) > 0:
+            var_list.append(self.get_factors(factors=var_factors, df=True))
 
         # Return a DataFrame with columns ordered as requested
         return pd.concat(var_list, axis=1)[variables]
@@ -561,10 +617,12 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         return (findices, factors)
 
     def get_factor_r2(
-        self, factor_index: int, 
+        self,
+        factor_index: int,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
-        group_label: Optional[str] = None, groups_df: Optional[pd.DataFrame] = None
+        group_label: Optional[str] = None,
+        groups_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         if groups_df is not None and group_label is not None:
             print("Please specify either group_label or groups_df but not both")
@@ -581,14 +639,14 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
                         self.expectations["Z"][group][[factor_index], :]
                     ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
                     y = np.array(self.data[view][group])
-                    a = np.sum((y - crossprod) ** 2)
-                    b = np.sum(y ** 2)
+                    a = np.nansum((y - crossprod) ** 2.0)
+                    b = np.nansum(y ** 2)
                     r2_df = r2_df.append(
                         {
                             "View": view,
                             "Group": group,
                             "Factor": f"Factor{factor_index+1}",
-                            "R2": 1 - a / b,
+                            "R2": (1.0 - a / b) * 100,
                         },
                         ignore_index=True,
                     )
@@ -597,9 +655,13 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         # Z matrix has to be merged and then split
         # according to the new grouping of samples
         else:
-            custom_groups = groups_df.iloc[:, 0].unique() if group_label is None else self.samples_metadata[group_label].unique()
+            custom_groups = (
+                groups_df.iloc[:, 0].unique()
+                if group_label is None
+                else self.samples_metadata[group_label].unique()
+            )
             if groups_df is None:
-                groups_df = self.samples_metadata.loc[:,[group_label]]
+                groups_df = self.samples_metadata.loc[:, [group_label]]
 
             z = np.concatenate(
                 [self.expectations["Z"][group][:, :] for group in groups], axis=1
@@ -627,14 +689,14 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
                         np.array(self.expectations["W"][view][[factor_index], :])
                     )
                     y = np.array(data_view[group])
-                    a = np.sum((y - crossprod) ** 2)
-                    b = np.sum(y ** 2)
+                    a = np.nansum((y - crossprod) ** 2)
+                    b = np.nansum(y ** 2)
                     r2_df = r2_df.append(
                         {
                             "View": view,
                             "Group": group,
                             "Factor": f"Factor{factor_index+1}",
-                            "R2": 1 - a / b,
+                            "R2": (1 - a / b) * 100,
                         },
                         ignore_index=True,
                     )
@@ -646,7 +708,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
         groups_df: Optional[pd.DataFrame] = None,
-        group_label: Optional[str] = None
+        group_label: Optional[str] = None,
     ) -> pd.DataFrame:
         """
         Get variance explained (R2) per factor, view, and group.
@@ -662,14 +724,29 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         groups_df : optional pd.DataFrame
             Data frame with samples (cells) as index and first column as group assignment
         """
-        if "variance_explained" in self.model.keys() and group_label is None and groups_df is None:
+        if (
+            "variance_explained" in self.model.keys()
+            and group_label is None
+            and groups_df is None
+        ):
             # Load from file if pre-computed
-            r2 = pd.concat([
-             pd.DataFrame(r2, index=self.views, columns=[f"Factor{i+1}" for i in range(self.nfactors)])\
-                .rename_axis("View").reset_index().melt(id_vars=["View"], var_name="Factor", value_name="R2")\
-                .assign(Group=group)\
-                .loc[:,["Factor", "View", "Group", "R2"]]
-                  for group, r2 in self.model["variance_explained"]["r2_per_factor"].items()])
+            r2 = pd.concat(
+                [
+                    pd.DataFrame(
+                        r2,
+                        index=self.views,
+                        columns=[f"Factor{i+1}" for i in range(self.nfactors)],
+                    )
+                    .rename_axis("View")
+                    .reset_index()
+                    .melt(id_vars=["View"], var_name="Factor", value_name="R2")
+                    .assign(Group=group)
+                    .loc[:, ["Factor", "View", "Group", "R2"]]
+                    for group, r2 in self.model["variance_explained"][
+                        "r2_per_factor"
+                    ].items()
+                ]
+            )
             if factors is not None:
                 _, factors = self.__check_factors(factors)
                 r2 = r2[r2.Factor.isin(factors)]
@@ -679,14 +756,22 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             if views is not None:
                 view = self.__check_views(views)
                 r2 = r2[r2.View.isin(views)]
-        else:        
+        else:
             if groups_df is not None and group_label is not None:
                 print("Please specify either group_label or groups_df but not both")
                 sys.exit(1)
             r2 = pd.DataFrame()
             findices, _ = self.__check_factors(factors)
             for fi in findices:
-                r2 = r2.append(self.get_factor_r2(fi, groups=groups, views=views, group_label=group_label, groups_df=groups_df))
+                r2 = r2.append(
+                    self.get_factor_r2(
+                        fi,
+                        groups=groups,
+                        views=views,
+                        group_label=group_label,
+                        groups_df=groups_df,
+                    )
+                )
         return r2
 
     def get_factor_r2_null(
@@ -706,7 +791,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
             group_label = "group"
 
         if groups_df is None:
-            groups_df = self.samples_metadata.loc[:,[group_label]]
+            groups_df = self.samples_metadata.loc[:, [group_label]]
 
         custom_groups = groups_df.iloc[:, 0].unique()
 
@@ -820,7 +905,7 @@ Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}""")
         """
         Project new data onto the factor space of the model.
 
-        For the projection, a pseudo-inverse of the weights matrix is calculated 
+        For the projection, a pseudo-inverse of the weights matrix is calculated
         and its product with the provided data matrix is calculated.
 
         Parameters
@@ -889,7 +974,9 @@ def umap(data, n_neighbors=10, spread=1, random_state=None, **kwargs):
     """
     import umap
 
-    embedding = umap.UMAP(n_neighbors=n_neighbors, spread=spread, random_state=random_state, **kwargs).fit_transform(data)
+    embedding = umap.UMAP(
+        n_neighbors=n_neighbors, spread=spread, random_state=random_state, **kwargs
+    ).fit_transform(data)
 
     if isinstance(data, pd.DataFrame):
         embedding = pd.DataFrame(embedding)
@@ -917,7 +1004,7 @@ def padjust_fdr_2d(mx):
     """
     from scipy.stats import rankdata
 
-    ranked_p_values = rankdata(mx).reshape((-1,mx.shape[1]))
+    ranked_p_values = rankdata(mx).reshape((-1, mx.shape[1]))
     fdr = mx * mx.shape[0] * mx.shape[1] / ranked_p_values
     fdr[fdr > 1] = 1
     return fdr
