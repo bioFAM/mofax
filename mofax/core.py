@@ -33,8 +33,16 @@ class mofa_model:
             for m in self.model["features"]
         }
 
-        self.groups = list(np.array(self.model["groups"]["groups"]).astype(str))
-        self.views = list(np.array(self.model["views"]["views"]).astype(str))
+        self.groups = (
+            list(np.array(self.model["groups"]["groups"]).astype(str))
+            if "groups" in self.model
+            else list(self.model["samples"].keys())
+        )
+        self.views = (
+            list(np.array(self.model["views"]["views"]).astype(str))
+            if "views" in self.model
+            else list(self.model["features"].keys())
+        )
 
         self.expectations = self.model["expectations"]
         self.factors = self.model["expectations"]["Z"]
