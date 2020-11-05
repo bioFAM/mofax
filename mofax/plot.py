@@ -35,9 +35,11 @@ def plot_weights(
     line_width=0.5,
     line_color="black",
     line_alpha=0.2,
-    zero_line=False,
+    zero_line=True,
     zero_line_width=1,
     ncols=4,
+    sharex=True,
+    sharey=False,
     **kwargs,
 ):
     """
@@ -81,6 +83,10 @@ def plot_weights(
         Width of the line at 0 (1 by default)
     ncols : int
         Number of columns in the grid of multiple plots, one plot per view (4 by default)
+    sharex : bool
+        If to use the same X axis across panels (True by default)
+    sharey : bool
+        If to use the same Y axis across panels (False by default)
     """
     w = model.get_weights(
         views=views,
@@ -130,8 +136,8 @@ def plot_weights(
     fig, axes = plt.subplots(
         nrows,
         ncols,
-        sharex=True,
-        sharey=True,
+        sharex=sharex,
+        sharey=sharey,
         figsize=(
             ncols * rcParams["figure.figsize"][0],
             nrows * rcParams["figure.figsize"][1],
@@ -558,6 +564,8 @@ def plot_weights_dotplot(
     xticklabels_size=8,
     yticklabels_size=5,
     ncols=1,
+    sharex=True,
+    sharey=False,
     **kwargs,
 ):
     """
@@ -593,6 +601,10 @@ def plot_weights_dotplot(
         Font size for factors labels (default is None)
     ncols : optional
         Number of columns when plotting multiple views (default is 1)
+    sharex : bool
+        If to use the same X axis across panels (True by default)
+    sharey : bool
+        If to use the same Y axis across panels (False by default)
     """
 
     # Set defaults
@@ -659,8 +671,8 @@ def plot_weights_dotplot(
     fig, axes = plt.subplots(
         nrows,
         ncols,
-        sharex=True,
-        sharey=False,
+        sharex=sharex,
+        sharey=sharey,
         figsize=(
             ncols * rcParams["figure.figsize"][0],
             nrows * rcParams["figure.figsize"][1],
