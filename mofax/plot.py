@@ -1124,6 +1124,7 @@ def plot_factors_violin(
     legend=True,
     legend_prop=None,
     palette=None,
+    violins_alpha=None,
     ncols=4,
     sharex=False,
     sharey=False,
@@ -1167,6 +1168,8 @@ def plot_factors_violin(
     palette : optional
         cmap describing colours, default is None (cubehelix)
         Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
+    violins_alpha : optional
+        Violins opacity
     ncols : optional
         Number of columns if multiple colours are defined (4 by default)
     sharex: optional
@@ -1245,6 +1248,9 @@ def plot_factors_violin(
                 inner=None,
                 ax=axes[ri, ci],
             )
+            if violins_alpha:
+                for violin in g.collections:
+                    violin.set_alpha(violins_alpha)
         if dots:
             g = sns.stripplot(
                 x=x,
