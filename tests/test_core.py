@@ -4,6 +4,8 @@ import unittest
 import pandas as pd
 import mofax
 
+from mofax.plot import *
+
 TEST_MODEL = os.path.join(os.path.dirname(__file__), "mofa2_test_model.hdf5")
 
 
@@ -35,6 +37,21 @@ class TestR2(unittest.TestCase):
 
     def test_factor_r2(self):
         self.assertIsInstance(self.model.get_factor_r2(factor_index=0), pd.DataFrame)
+
+    def tearDown(self):
+        self.model.close()
+
+class TestPlotting(unittest.TestCase):
+    def setUp(self):
+        self.model = mofax.mofa_model(TEST_MODEL)
+
+    # def test_plot_factors(self):
+    def test_plot_weights(self):
+        plot_weights(self.model, factors=0, views=0)
+        # plot_weights_ranked(self.model, factors=0, views=0)
+
+
+
 
     def tearDown(self):
         self.model.close()
