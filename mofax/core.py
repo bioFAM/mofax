@@ -23,32 +23,40 @@ class mofa_model:
         self.filename = path.basename(filepath)
         self.model = h5py.File(filepath, mode)
 
-        self.data = self.model["data"] if "data" in self.model else None
 
+        # Define samples
         self.samples = {
             g: np.array(self.model["samples"][g]).astype("str")
             for g in self.model["samples"]
         }
+
+        # Define features
         self.features = {
             m: np.array(self.model["features"][m]).astype("str")
             for m in self.model["features"]
         }
 
+        # Define groups
         self.groups = (
             list(np.array(self.model["groups"]["groups"]).astype(str))
             if "groups" in self.model
             else list(self.model["samples"].keys())
         )
+
+        # Define views
         self.views = (
             list(np.array(self.model["views"]["views"]).astype(str))
             if "views" in self.model
             else list(self.model["features"].keys())
         )
 
+        # Define data and epxectations
+        self.data = self.model["data"] if "data" in self.model else None
         self.expectations = self.model["expectations"]
         self.factors = self.model["expectations"]["Z"]
         self.weights = self.model["expectations"]["W"]
 
+        # Define dimensionalities
         if self.data is not None:
             self.shape = (
                 sum(self.data[self.views[0]][group].shape[0] for group in self.groups),
@@ -59,10 +67,11 @@ class mofa_model:
                 sum(self.factors[group].shape[0] for group in self.groups),
                 sum(self.weights[view].shape[0] for view in self.views),
             )
-        self.nfactors = self.model["expectations"]["Z"][self.groups[0]].shape[0]
+        self.nfactors = self.factors[self.groups[0]].shape[0]
         self.nviews = len(self.views)
         self.ngroups = len(self.groups)
 
+        # Load model options
         if "model_options" in self.model:
             self.likelihoods = (
                 np.array(self.model["model_options"]["likelihoods"])
@@ -70,10 +79,12 @@ class mofa_model:
                 .tolist()
             )
 
+        # Load training options
         if "training_opts" in self.model:
             # TODO: Update according to the latest API
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
+        # Define samples metadata
         self._samples_metadata = pd.DataFrame(
             [
                 [cell, group]
@@ -126,6 +137,7 @@ class mofa_model:
 
         self._samples_metadata = self._samples_metadata.set_index("sample")
 
+        # Define features metadata
         self.features_metadata = pd.DataFrame(
             [
                 [feature, view]
@@ -529,16 +541,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             y.index = np.concatenate(tuple(self.samples[g] for g in groups))
         return y
 
-    def fetch_values(self, variables: Union[str, List[str]]):
-        """
-        Fetch metadata column, factors, or feature values.
-        Shorthand to get_data, get_factors, and metadata calls.
-
-        Parameters
-        ----------
-        features : str
-            Features, metadata columns, or factors (FactorN) to fetch
-        """
+    def __fetch_values(self, variables: Union[str, List[str]]):
         # If a sole variable name is used, wrap it in a list
         if not isinstance(variables, Iterable) or isinstance(variables, str):
             variables = [variables]
@@ -633,6 +636,17 @@ Expectations: {', '.join(self.expectations.keys())}"""
         group_label: Optional[str] = None,
         groups_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
+        """
+        Get the variance explained estimates for each factor in each view and/or group
+
+        Parameters
+        ----------
+        groups : optional
+            List of groups to consider (default is all groups)
+        views : optional
+            List of views to consider (default is all views)
+        """
+
         if groups_df is not None and group_label is not None:
             print("Please specify either group_label or groups_df but not both")
             sys.exit(1)
@@ -783,7 +797,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 )
         return r2
 
-    def get_factor_r2_null(
+    def __get_factor_r2_null(
         self,
         factor_index: int,
         groups_df: Optional[pd.DataFrame],
@@ -877,7 +891,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         else:
             return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
 
-    def get_r2_null(
+    def __get_r2_null(
         self,
         factors: Union[int, List[int], str, List[str]] = None,
         n_iter: int = 100,
@@ -891,7 +905,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         r2 = pd.DataFrame()
         for fi in findices:
             r2 = r2.append(
-                self.get_factor_r2_null(
+                self.__get_factor_r2_null(
                     fi,
                     groups_df=groups_df,
                     group_label=group_label,
@@ -903,7 +917,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             )
         return r2
 
-    def project_data(
+    def __project_data(
         self,
         data,
         view: Union[str, int] = None,

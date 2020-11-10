@@ -17,7 +17,7 @@ sns.set_style("ticks")
 sns.set_palette("Set2")
 
 
-### WEIGHTS (LOADINGS) ###
+### WEIGHTS ###
 
 
 def plot_weights(
@@ -44,18 +44,18 @@ def plot_weights(
     **kwargs,
 ):
     """
-    Plot weights (loadings) for a specific factor
+    Plot weights for a specific factor
 
     Parameters
     ----------
     model : mofa_model
-        Factor model
+        An instance of the mofa_model class
     factors : str or int or list of str or None
         Factors to use (default is all)
     views : str or int or list of str or None
         The views to get the factors weights for (first view by default)
     n_features : int
-        Number of features to label with most positive and most negative weights
+        Number of features with the largest weights to label (in absolute values)
     w_scaled : bool
         If scale weights to unite variance (False by default)
     w_abs : bool
@@ -237,7 +237,7 @@ def plot_weights_ranked(
     **kwargs,
 ):
     """
-    Plot weights (loadings) for a specific factor
+    Plot weights for a specific factor
 
     Parameters
     ----------
@@ -297,7 +297,7 @@ def plot_weights_ranked(
         **kwargs,
     )
 
-    # Label top loadings
+    # Label top features
 
     # Positive weights
     y_start_pos = w[w.value > 0].sort_values("abs_rank").iloc[0].value
@@ -359,7 +359,7 @@ def plot_weights_scaled(
     **kwargs,
 ):
     """
-    Plot scaled weights (loadings) for 2 factors
+    Scatterplot of feature weights for two factors
 
     Parameters
     ----------
@@ -451,7 +451,7 @@ def plot_weights_heatmap(
     **kwargs,
 ):
     """
-    Plot weights (loadings) for top features in a heatmap
+    Plot weights for top features in a heatmap
 
     Parameters
     ----------
@@ -570,7 +570,7 @@ def plot_weights_dotplot(
     **kwargs,
 ):
     """
-    Plot weights (loadings) for top features in a heatmap
+    Plot weights for top features in a heatmap
 
     Parameters
     ----------
@@ -746,7 +746,7 @@ def plot_weights_scatter(
     **kwargs,
 ):
     """
-    Plot weights (loadings) for two factors
+    Plot weights for two factors
 
     Parameters
     ----------
