@@ -1,5 +1,5 @@
 from .core import mofa_model
-from .utils import umap, padjust_fdr_2d
+from .utils import *
 
 import sys
 from warnings import warn

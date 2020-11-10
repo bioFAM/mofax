@@ -8,7 +8,7 @@ from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
 
-from .utils import umap, padjust_fdr_2d
+from .utils import *
 
 class mofa_model:
     """Class around HDF5-based model on disk.
