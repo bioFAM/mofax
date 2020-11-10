@@ -31,6 +31,9 @@ class TestMofaModelMethods(unittest.TestCase):
         self.model.get_data()
         self.model.get_data(view=0, groups=0, df=True)
 
+    def test_dimred(self):
+        self.model.run_umap()
+
     def tearDown(self):
         self.model.close()
 

@@ -68,49 +68,6 @@ def load_samples_metadata(model):
     self._samples_metadata = self._samples_metadata.set_index("sample")
     return(self._samples_metadata)
 
-def umap(
-    data: Union[np.ndarray,pd.DataFrame], 
-    n_neighbors: int = 10, 
-    min_dist: float = 0.5,
-    spread: float = 1.0, 
-    random_state: int = 42, 
-    **kwargs
-):
-    """
-    Run UMAP on a provided matrix or data frame
-
-    Parameters
-    ----------
-    data
-        Numpy array or Pandas DataFrame with data to run UMAP on (samples in rows)
-    n_neighbors : optional
-        UMAP parameter: number of neighbors.
-    min_dist
-        UMAP parameter: the effective minimum distance between embedded points. Smaller values
-        will result in a more clustered/clumped embedding where nearby points on
-        the manifold are drawn closer together, while larger values will result
-        on a more even dispersal of points. The value should be set relative to
-        the ``spread`` value, which determines the scale at which embedded
-        points will be spread out.
-    spread
-        UMAP parameter: the effective scale of embedded points. In combination with `min_dist`
-        this determines how clustered/clumped the embedded points are.
-    random_state
-        random seed
-    """
-    import umap
-
-    embedding = umap.UMAP(
-        n_neighbors=n_neighbors, min_dist=min_dist, spread=spread, random_state=random_state, **kwargs
-    ).fit_transform(data)
-
-    if isinstance(data, pd.DataFrame):
-        embedding = pd.DataFrame(embedding)
-        embedding.columns = ["UMAP1", "UMAP2"]
-        embedding.index = data.index
-
-    return embedding
-
 
 def padjust_fdr(xs):
     """

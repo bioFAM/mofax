@@ -565,6 +565,54 @@ Expectations: {', '.join(self.expectations.keys())}"""
         return y
 
 
+    def run_umap(self,
+        groups: Union[str, int, List[str], List[int]] = None,
+        factors: Union[int, List[int]] = None,
+        n_neighbors: int = 10, 
+        min_dist: float = 0.5,
+        spread: float = 1.0, 
+        random_state: int = 42, 
+        **kwargs
+    ) -> None:
+    """
+    Run UMAP on the factor space
+
+    Parameters
+    ----------
+    n_neighbors : optional
+        UMAP parameter: number of neighbors.
+    min_dist
+        UMAP parameter: the effective minimum distance between embedded points. Smaller values
+        will result in a more clustered/clumped embedding where nearby points on
+        the manifold are drawn closer together, while larger values will result
+        on a more even dispersal of points. The value should be set relative to
+        the ``spread`` value, which determines the scale at which embedded
+        points will be spread out.
+    spread
+        UMAP parameter: the effective scale of embedded points. In combination with `min_dist`
+        this determines how clustered/clumped the embedded points are.
+    random_state
+        random seed
+    """
+    import umap
+
+    # Get factors
+    data = self.get_factors(groups, factors)
+
+    embedding = umap.UMAP(
+        n_neighbors=n_neighbors, min_dist=min_dist, spread=spread, random_state=random_state, **kwargs
+    ).fit_transform(data)
+
+    # create pandas dataframe
+    pd_umap = pd.DataFrame(embedding)
+    pd_umap.columns = ["UMAP"+str(i+1) for i in range(embedding.shape[1])]
+    pd_umap.index = m.get_samples()["sample"]
+
+    # merge with samples metadata
+    self.samples_metadata = pd.merge(left=self._samples_metadata, right=pd_umap, how='left', left_on='sample', right_on='sample')
+    print("UMAP coordinates added to the samples_metadata")
+
+
     def __fetch_values(self, variables: Union[str, List[str]]):
         # If a sole variable name is used, wrap it in a list
         if not isinstance(variables, Iterable) or isinstance(variables, str):
