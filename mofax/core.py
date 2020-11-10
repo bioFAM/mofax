@@ -606,7 +606,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         # create pandas dataframe
         pd_umap = pd.DataFrame(embedding)
         pd_umap.columns = ["UMAP"+str(i+1) for i in range(embedding.shape[1])]
-        pd_umap.index = m.get_samples()["sample"]
+        pd_umap.index = self.get_samples()["sample"]
 
         # merge with samples metadata
         self.samples_metadata = pd.merge(left=self._samples_metadata, right=pd_umap, how='left', left_on='sample', right_on='sample')
