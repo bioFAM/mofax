@@ -34,6 +34,9 @@ class TestMofaModelMethods(unittest.TestCase):
     def test_dimred(self):
         self.model.run_umap()
 
+    def test_variance_explained(self):
+        self.model.get_variance_explained()
+
     def tearDown(self):
         self.model.close()
 

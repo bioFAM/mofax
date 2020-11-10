@@ -377,7 +377,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             Boolean value if to return a DataFrame
         """
         views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors, unique=True)
+        factor_indices, factors = self.__check_factors(factors, unique=True)
         n_features_default = 10
 
         # Fetch weights for the relevant factors
@@ -456,9 +456,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
             If return absolute values for factors
         """
         groups = self.__check_groups(groups)
-        findices, factors = self.__check_factors(factors)
+        factor_indices, factors = self.__check_factors(factors)
         z = np.concatenate(
-            tuple(np.array(self.factors[group]).T[:, findices] for group in groups)
+            tuple(np.array(self.factors[group]).T[:, factor_indices] for group in groups)
         )
         if scaled_values:
             z = (z - z.mean(axis=0)) / z.std(axis=0)
@@ -495,9 +495,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
             If return absolute values for weights
         """
         views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors, unique=True)
+        factor_indices, factors = self.__check_factors(factors, unique=True)
         w = np.concatenate(
-            tuple(np.array(self.weights[view]).T[:, findices] for view in views)
+            tuple(np.array(self.weights[view]).T[:, factor_indices] for view in views)
         )
         if scaled_values:
             w = (w - w.mean(axis=0)) / w.std(axis=0)
@@ -754,13 +754,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if unique:
             factors = list(set(factors))
         # Convert factor names (FactorN) to factor indices (N-1)
-        findices = [
+        factor_indices = [
             int(fi.replace("Factor", "")) - 1 if isinstance(fi, str) else fi
             for fi in factors
         ]
         factors = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]
 
-        return (findices, factors)
+        return (factor_indices, factors)
 
     def get_factor_r2(
         self,
@@ -859,16 +859,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     )
         return r2_df
 
-    def get_r2(
+    def get_variance_explained(
         self,
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
-        views: Optional[Union[str, int, List[str], List[int]]] = None,
-        groups_df: Optional[pd.DataFrame] = None,
-        group_label: Optional[str] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None
     ) -> pd.DataFrame:
         """
-        Get variance explained (R2) per factor, view, and group.
+        Get variance explained estimates (R2) for each factor across  view(s) and/or group(s).
 
         factors : optional
             List of factors to consider (all by default)
@@ -876,17 +874,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
             List of groups to consider (all by default)
         views : optional
             List of views to consider (all by default)
-        group_label : optional
-            Sample (cell) metadata column to be used as group assignment
-        groups_df : optional pd.DataFrame
-            Data frame with samples (cells) as index and first column as group assignment
         """
-        if (
-            "variance_explained" in self.model.keys()
-            and group_label is None
-            and groups_df is None
-        ):
-            # Load from file if pre-computed
+
+        # Load from file if pre-computed
+        if "variance_explained" in self.model.keys():
             r2 = pd.concat(
                 [
                     pd.DataFrame(
@@ -904,6 +895,15 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     ].items()
                 ]
             )
+        # Recalculate if not pre-computed
+        else:
+
+            r2 = pd.DataFrame()
+            factor_indices, _ = self.__check_factors(factors)
+            for k in factor_indices:
+                r2 = r2.append(self.get_factor_r2(k, groups=groups, views=views))
+
+            # Subset
             if factors is not None:
                 _, factors = self.__check_factors(factors)
                 r2 = r2[r2.Factor.isin(factors)]
@@ -913,23 +913,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
             if views is not None:
                 view = self.__check_views(views)
                 r2 = r2[r2.View.isin(views)]
-        else:
-            if groups_df is not None and group_label is not None:
-                print("Please specify either group_label or groups_df but not both")
-                sys.exit(1)
-            r2 = pd.DataFrame()
-            findices, _ = self.__check_factors(factors)
-            for fi in findices:
-                r2 = r2.append(
-                    self.get_factor_r2(
-                        fi,
-                        groups=groups,
-                        views=views,
-                        group_label=group_label,
-                        groups_df=groups_df,
-                    )
-                )
         return r2
+
 
     def __get_factor_r2_null(
         self,
@@ -1035,9 +1020,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
         return_pvalues=True,
         fdr=True,
     ) -> pd.DataFrame:
-        findices, factors = self.__check_factors(factors)
+        factor_indices, factors = self.__check_factors(factors)
         r2 = pd.DataFrame()
-        for fi in findices:
+        for fi in factor_indices:
             r2 = r2.append(
                 self.__get_factor_r2_null(
                     fi,
@@ -1077,7 +1062,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if view is None:
             view = 0
         view = self.__check_views([view])[0]
-        findices, factors = self.__check_factors(factors)
+        factor_indices, factors = self.__check_factors(factors)
 
         # Calculate the inverse of W
         winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
