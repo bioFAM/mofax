@@ -85,6 +85,8 @@ class mofa_model:
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
         # Define samples metadata
+        # (TO-DO) load_samples_metadata(self.model)
+
         self._samples_metadata = pd.DataFrame(
             [
                 [cell, group]
@@ -138,6 +140,7 @@ class mofa_model:
         self._samples_metadata = self._samples_metadata.set_index("sample")
 
         # Define features metadata
+        # (TO-DO) load_features_metadata(self.model)
         self.features_metadata = pd.DataFrame(
             [
                 [feature, view]
@@ -324,6 +327,18 @@ Expectations: {', '.join(self.expectations.keys())}"""
             columns=["view", "feature"],
         )
 
+    def get_groups(self):
+        """
+        Get the groups names
+        """
+        return self.groups
+
+    def get_views(self):
+        """
+        Get the views names
+        """
+        return self.views
+
     def get_top_features(
         self,
         factors: Union[int, List[int]] = None,
@@ -420,7 +435,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         self,
         groups: Union[str, int, List[str], List[int]] = None,
         factors: Union[int, List[int]] = None,
-        df=False,
+        df: bool = False,
         scaled_values: bool = False,
         absolute_values: bool = False,
     ):
@@ -496,50 +511,59 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
     def get_data(
         self,
-        features: Optional[Union[str, List[str]]],
+        view: Union[str, int] = 0,
+        features: Optional[Union[str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
-        df=False,
+        df: bool = False,
     ):
         """
         Get the subset of the training data matrix as a NumPy array or as a DataFrame (df=True).
 
         Parameters
         ----------
-        groups : optional
-            List of groups to consider
+        view : optional
+            view to consider
         features : optional
             Features to consider (from one view)
+        groups : optional
+            groups to consider
         df : optional
             Boolean value if to return Y matrix as a DataFrame
         """
+
+        # Sanity checks
         groups = self.__check_groups(groups)
+        view = self.__check_views(view)[0]
+
+        # If features is None (default), return all by default
+        pd_features = self.get_features(view)
+        if features is None: 
+            features = pd_features.feature.values
+
         # If a sole feature name is used, wrap it in a list
         if not isinstance(features, Iterable) or isinstance(features, str):
             features = [features]
         else:
-            # Make feature names unique
-            features = list(set(features))
+            features = list(set(features)) # make feature names unique
 
-        # Deduce the view from the feature name
-        fs = self.get_features()
-        f_i = np.where(fs.feature.isin(features))[0]
+        f_i = np.where(pd_features.feature.isin(features))[0]
         assert len(f_i) > 0, "Requested features are not found"
-        f_view = fs.iloc[f_i, :].view.unique()
-        assert len(f_view) == 1, "All the features should be from one view"
-        f_view = f_view[0]
+        pd_features = pd_features.loc[f_i]
 
-        # Determine feature index in that view
-        fs = self.get_features(views=f_view)
-        f_i = np.where(fs.feature.isin(features))[0]
-
+        # Create numpy array 
+        # y = [self.data[view][g][:, :] for g in groups]
         y = np.concatenate(
-            tuple(np.array(self.data[f_view][group])[:, f_i] for group in groups)
+            [ self.data[view][g][:, f_i] for g in groups ], axis=0
         )
+
+        # Convert output to pandas data.frame
         if df:
             y = pd.DataFrame(y)
-            y.columns = fs.feature.values[f_i]
+            y.columns = pd_features.feature.values
             y.index = np.concatenate(tuple(self.samples[g] for g in groups))
+
         return y
+
 
     def __fetch_values(self, variables: Union[str, List[str]]):
         # If a sole variable name is used, wrap it in a list
@@ -577,38 +601,100 @@ Expectations: {', '.join(self.expectations.keys())}"""
         return pd.concat(var_list, axis=1)[variables]
 
     def __check_views(self, views):
-        return self.__check_grouping(views, "views")
+        if views is None:
+            views = self.views
+        # single view provided as a string
+        elif isinstance(views, str):
+            views = [views]
+
+        # single view provided as an integer
+        elif isinstance(views, int):
+            views = [self.views[views]]
+
+        # multiple views provided as an iterable
+        elif isinstance(views, Iterable) and not isinstance(views, str):
+        
+            # (to-do) check that all elements are of the same type
+
+            # iterable of booleans
+            if all([isinstance(m, bool) for m in views]):
+                raise ValueError(
+                    f"Please provide view names as string or view indices as integers, boolean values are not accepted. Group names of this model are {', '.join(self.views)}."
+                )
+            # iterable of integers
+            elif all([isinstance(m, int) for m in views]):
+                views = [self.views[m] if isinstance(m, int) else m for m in views]
+            # iterable of strings
+            elif all([isinstance(m, str) for m in views]):
+                assert set(views).issubset(set(self.views)), f"some of the elements of the 'views' are not valid views. Group names of this model are {', '.join(self.views)}."
+            else:
+                raise ValueError("elements of the 'view' vector have to be either integers or strings")
+        else:
+            raise ValueError("views argument not recognised")
+
+        return views
 
     def __check_groups(self, groups):
-        return self.__check_grouping(groups, "groups")
-
-    def __check_grouping(self, groups, grouping_instance):
-        assert grouping_instance in ["groups", "views"]
-        # Use all groups if no specific groups are requested
         if groups is None:
-            if grouping_instance == "groups":
-                groups = self.groups
-            elif grouping_instance == "views":
-                groups = self.views
-        # If a sole group name is used, wrap it in a list
-        if not isinstance(groups, Iterable) or isinstance(groups, str):
+            groups = self.groups
+        # single group provided as a string
+        elif isinstance(groups, str):
             groups = [groups]
-        # Do not accept boolean values
-        if any([isinstance(g, bool) for g in groups]):
-            if grouping_instance == "groups":
+
+        # single group provided as an integer
+        elif isinstance(groups, int):
+            groups = [self.groups[groups]]
+
+        # multiple groups provided as an iterable
+        elif isinstance(groups, Iterable) and not isinstance(groups, str):
+
+            # (to-do) check that all elements are of the same type
+
+            # iterable of booleans
+            if all([isinstance(g, bool) for g in groups]):
                 raise ValueError(
-                    f"Please provide relevant group names. Boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
+                    f"Please provide group names as string or group indices as integers, boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
                 )
-            elif grouping_instance == "views":
-                raise ValueError(
-                    f"Please provide relevant view names. Boolean values are not accepted. View names of this model are {', '.join(self.views)}."
-                )
-        # Convert integers to group names
-        if grouping_instance == "groups":
-            groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
-        elif grouping_instance == "views":
-            groups = [self.views[g] if isinstance(g, int) else g for g in groups]
+            # iterable of integers
+            elif all([isinstance(g, int) for g in groups]):
+                groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
+            # iterable of strings
+            elif all([isinstance(g, str) for g in groups]):
+                assert set(groups).issubset(set(self.groups)), f"some of the elements of the 'groups' are not valid groups. Group names of this model are {', '.join(self.groups)}."
+            else:
+                raise ValueError("elements of the 'group' vector have to be either integers or strings")
+        else:
+            raise ValueError("groups argument not recognised")
+
         return groups
+
+    # def __check_grouping(self, groups, grouping_instance):
+    #     assert grouping_instance in ["groups", "views"]
+    #     # Use all groups if no specific groups are requested
+    #     if groups is None:
+    #         if grouping_instance == "groups":
+    #             groups = self.groups
+    #         elif grouping_instance == "views":
+    #             groups = self.views
+    #     # If a sole group name is used, wrap it in a list
+    #     if not isinstance(groups, Iterable) or isinstance(groups, str):
+    #         groups = [groups]
+    #     # Do not accept boolean values
+    #     if any([isinstance(g, bool) for g in groups]):
+    #         if grouping_instance == "groups":
+    #             raise ValueError(
+    #                 f"Please provide relevant group names. Boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
+    #             )
+    #         elif grouping_instance == "views":
+    #             raise ValueError(
+    #                 f"Please provide relevant view names. Boolean values are not accepted. View names of this model are {', '.join(self.views)}."
+    #             )
+    #     # Convert integers to group names
+    #     if grouping_instance == "groups":
+    #         groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
+    #     elif grouping_instance == "views":
+    #         groups = [self.views[g] if isinstance(g, int) else g for g in groups]
+    #     return groups
 
     def __check_factors(self, factors, unique=False):
         # Use all factors by default

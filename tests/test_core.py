@@ -27,6 +27,10 @@ class TestMofaModelMethods(unittest.TestCase):
     def test_cells(self):
         self.assertIsInstance(self.model.get_cells(), pd.DataFrame)
 
+    def test_get_data(self):
+        self.model.get_data()
+        self.model.get_data(view=0, groups=0, df=True)
+
     def tearDown(self):
         self.model.close()
 
@@ -49,9 +53,6 @@ class TestPlotting(unittest.TestCase):
     def test_plot_weights(self):
         plot_weights(self.model, factors=0, views=0)
         # plot_weights_ranked(self.model, factors=0, views=0)
-
-
-
 
     def tearDown(self):
         self.model.close()
