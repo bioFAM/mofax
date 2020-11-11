@@ -7,6 +7,12 @@ from typing import Union, List, Optional
 #######################
 
 
+def calculate_r2(Z, W, Y):
+    a = np.nansum((Y - Z.T.dot(W)) ** 2.0)
+    b = np.nansum(Y ** 2)
+    r2 = (1.0 - a / b) * 100
+    return r2
+
 def load_samples_metadata(model):
 
     # Define metadata template

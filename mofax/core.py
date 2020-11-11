@@ -762,23 +762,27 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         return (factor_indices, factors)
 
-    def get_factor_r2(
+    def calculate_variance_explained(
         self,
-        factor_index: int,
+        # factor_index: int,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
         group_label: Optional[str] = None,
         groups_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
         """
-        Get the variance explained estimates for each factor in each view and/or group
+        Calculate the variance explained estimates for each factor in each view and/or group.
+        Allow also for predefined groups
 
         Parameters
         ----------
+        factors : optional
+            List of factors to consider (default is None, all factors)
         groups : optional
-            List of groups to consider (default is all groups)
+            List of groups to consider (default is None, all groups)
         views : optional
-            List of views to consider (default is all views)
+            List of views to consider (default is None, all views)
         """
 
         if groups_df is not None and group_label is not None:
@@ -787,30 +791,24 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         groups = self.__check_groups(groups)
         views = self.__check_views(views)
+        factor_indices, _ = self.__check_factors(factors)
 
         r2_df = pd.DataFrame()
+
+        # use model groups
         if groups_df is None and (group_label is None or group_label == "group"):
             for view in views:
                 for group in groups:
-                    crossprod = np.array(
-                        self.expectations["Z"][group][[factor_index], :]
-                    ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
-                    y = np.array(self.data[view][group])
-                    a = np.nansum((y - crossprod) ** 2.0)
-                    b = np.nansum(y ** 2)
-                    r2_df = r2_df.append(
-                        {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": (1.0 - a / b) * 100,
-                        },
-                        ignore_index=True,
+                    r2 = calculate_r2(
+                        Z = np.array(self.expectations["Z"][group][factor_indices, :]),
+                        W = np.array(self.expectations["W"][view][factor_indices, :]),
+                        Y = np.array(self.data[view][group])
                     )
+                    r2_df = r2_df.append({"View": view, "Group": group, "R2": r2}, ignore_index=True)
 
-        # When calculating for a custom set of groups,
-        # Z matrix has to be merged and then split
-        # according to the new grouping of samples
+        # use custom groups
+        # note that when calculating for a custom set of groups,
+        # the Factor matrix (Z) has to be merged and then split according to the new grouping of samples
         else:
             custom_groups = (
                 groups_df.iloc[:, 0].unique()
@@ -842,21 +840,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     ]
 
                 for group in custom_groups:
-                    crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
-                        np.array(self.expectations["W"][view][[factor_index], :])
+                    r2 = calculate_r2(
+                        Z = np.array(z_custom[group][factor_indices, :]),
+                        W = np.array(self.expectations["W"][view][factor_indices, :]),
+                        Y = np.array(data_view[group])
                     )
-                    y = np.array(data_view[group])
-                    a = np.nansum((y - crossprod) ** 2)
-                    b = np.nansum(y ** 2)
-                    r2_df = r2_df.append(
-                        {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": (1 - a / b) * 100,
-                        },
-                        ignore_index=True,
-                    )
+                    r2_df = r2_df.append({"View": view, "Group": group, "R2": r2}, ignore_index=True)
         return r2_df
 
     def get_variance_explained(
@@ -901,7 +890,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
             r2 = pd.DataFrame()
             factor_indices, _ = self.__check_factors(factors)
             for k in factor_indices:
-                r2 = r2.append(self.get_factor_r2(k, groups=groups, views=views))
+                tmp = self.calculate_variance_explained(factors=k, groups=groups, views=views)
+                tmp['Factor'] = "Factor"+str(k)
+                r2 = r2.append(tmp)
 
             # Subset
             if factors is not None:

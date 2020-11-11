@@ -35,21 +35,22 @@ class TestMofaModelMethods(unittest.TestCase):
         self.model.run_umap()
 
     def test_variance_explained(self):
+        self.model.calculate_variance_explained(factors=[1,2,3])
         self.model.get_variance_explained()
 
     def tearDown(self):
         self.model.close()
 
 
-class TestR2(unittest.TestCase):
-    def setUp(self):
-        self.model = mofax.mofa_model(TEST_MODEL)
+# class TestR2(unittest.TestCase):
+#     def setUp(self):
+#         self.model = mofax.mofa_model(TEST_MODEL)
 
-    def test_factor_r2(self):
-        self.assertIsInstance(self.model.get_factor_r2(factor_index=0), pd.DataFrame)
+#     def test_factor_r2(self):
+#         self.assertIsInstance(self.model.get_factor_r2(factor_index=0), pd.DataFrame)
 
-    def tearDown(self):
-        self.model.close()
+#     def tearDown(self):
+#         self.model.close()
 
 class TestPlotting(unittest.TestCase):
     def setUp(self):
