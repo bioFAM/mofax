@@ -93,12 +93,13 @@ def plot_weights(
         views=views,
         factors=factors,
         df=True,
-        scaled_values=w_scaled,
+        scale=w_scaled,
         absolute_values=w_abs,
-    ).join(model.features_metadata.loc[:, ["view"]])
-    w = w.rename_axis("feature").reset_index()
-    # Make the table long for plotting
-    wm = w.melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
+    )[0]
+    wm = w.join(model.features_metadata.loc[:, ["view"]]) \
+        .rename_axis("feature").reset_index() \
+        .melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
+
     wm["abs_value"] = abs(wm.value)
 
     # Assign ranks to features, per factor

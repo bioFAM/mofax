@@ -27,12 +27,16 @@ class TestMofaModelMethods(unittest.TestCase):
     def test_cells(self):
         self.assertIsInstance(self.model.get_cells(), pd.DataFrame)
 
-    def test_get_data(self):
+    def test_get_methods(self):
+        self.model.get_factors()
+        self.model.get_factors(groups=0, scale=True, df=True)
+        self.model.get_weights()
+        self.model.get_weights(views=0, scale=True, df=True)
         self.model.get_data()
         self.model.get_data(view=0, groups=0, df=True)
 
-    def test_dimred(self):
-        self.model.run_umap()
+    # def test_dimred(self):
+    #     self.model.run_umap()
 
     def test_variance_explained(self):
         self.model.calculate_variance_explained(factors=[1,2,3])

@@ -13,66 +13,66 @@ def calculate_r2(Z, W, Y):
     r2 = (1.0 - a / b) * 100
     return r2
 
-def load_samples_metadata(model):
+# def load_samples_metadata(model):
 
-    # Define metadata template
-    self._samples_metadata = pd.DataFrame(
-        [
-            [sample, group]
-            for group, sample_list in model.samples.items()
-            for sample in sample_list
-        ],
-        columns=["sample", "group"],
-    )
+#     # Define metadata template
+#     self._samples_metadata = pd.DataFrame(
+#         [
+#             [sample, group]
+#             for group, sample_list in model.samples.items()
+#             for sample in sample_list
+#         ],
+#         columns=["sample", "group"],
+#     )
 
-    # Extract metadata from the model if existing
-    if "samples_metadata" in model:
-        if len(list(model["samples_metadata"][model.groups[0]].keys())) > 0:
-            tmp = pd.concat(
-                [
-                    pd.concat(
-                        [
-                            pd.Series(model["samples_metadata"][g][k])
-                            for k in model["samples_metadata"][g].keys()
-                        ],
-                        axis=1,
-                    )
-                    for g in model.groups
-                ],
-                axis=0,
-            )
+#     # Extract metadata from the model if existing
+#     if "samples_metadata" in model:
+#         if len(list(model["samples_metadata"][model.groups[0]].keys())) > 0:
+#             tmp = pd.concat(
+#                 [
+#                     pd.concat(
+#                         [
+#                             pd.Series(model["samples_metadata"][g][k])
+#                             for k in model["samples_metadata"][g].keys()
+#                         ],
+#                         axis=1,
+#                     )
+#                     for g in model.groups
+#                 ],
+#                 axis=0,
+#             )
 
-            # ????
-            tmp.columns = list(
-                model["samples_metadata"][model.groups[0]].keys()
-            )
+#             # ????
+#             tmp.columns = list(
+#                 model["samples_metadata"][model.groups[0]].keys()
+#             )
 
-            # Merge 
-            if "group" in tmp.columns:
-                del tmp["group"]
-            if "sample" in tmp.columns:
-                del tmp["sample"]
+#             # Merge 
+#             if "group" in tmp.columns:
+#                 del tmp["group"]
+#             if "sample" in tmp.columns:
+#                 del tmp["sample"]
 
-            self.samples_metadata = pd.concat(
-                [
-                    self._samples_metadata.reset_index(drop=True),
-                    tmp.reset_index(drop=True),
-                ],
-                axis=1,
-            )
+#             self.samples_metadata = pd.concat(
+#                 [
+#                     self._samples_metadata.reset_index(drop=True),
+#                     tmp.reset_index(drop=True),
+#                 ],
+#                 axis=1,
+#             )
 
-            # Decode objects as UTF-8 strings
-            for column in self.samples_metadata.columns:
-                if self.samples_metadata[column].dtype == "object":
-                    try:
-                        self.samples_metadata[column] = [
-                            i.decode() for i in self.samples_metadata[column].values
-                        ]
-                    except (UnicodeDecodeError, AttributeError):
-                        pass
+#             # Decode objects as UTF-8 strings
+#             for column in self.samples_metadata.columns:
+#                 if self.samples_metadata[column].dtype == "object":
+#                     try:
+#                         self.samples_metadata[column] = [
+#                             i.decode() for i in self.samples_metadata[column].values
+#                         ]
+#                     except (UnicodeDecodeError, AttributeError):
+#                         pass
 
-    self._samples_metadata = self._samples_metadata.set_index("sample")
-    return(self._samples_metadata)
+#     self._samples_metadata = self._samples_metadata.set_index("sample")
+#     return(self._samples_metadata)
 
 
 def padjust_fdr(xs):

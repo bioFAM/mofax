@@ -381,13 +381,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
         n_features_default = 10
 
         # Fetch weights for the relevant factors
-        w = (
+        w = pd.concat(
             self.get_weights(
                 views=views, factors=factors, df=True, absolute_values=absolute_values
-            )
-            .rename_axis("feature")
+            )) \
+            .rename_axis("feature") \
             .reset_index()
-        )
         wm = w.melt(id_vars="feature", var_name="factor", value_name="value")
         wm = wm.assign(value_abs=lambda x: x.value.abs())
         wm["factor"] = wm["factor"].astype("category")
@@ -463,7 +462,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
             Z = np.concatenate(
                 tuple(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
             )
-            # TO-DO: SCALING SHOULD BE PER FACTOR!
             if scale:
                 Z = (Z - Z.mean(axis=0)) / Z.std(axis=0)
             if df:
@@ -490,7 +488,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         absolute_values: bool = False,
     ):
         """
-        Get the matrix with weights as a NumPy array or as a DataFrame (df=True).
+        Fetch the weight matrices
 
         Parameters
         ----------
@@ -499,9 +497,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors : optional
             Indices of factors to use
         df : optional
-            Boolean value if to return W matrix as a DataFrame
+            Boolean value if to return W matrix as a (wide) pd.DataFrame
         scale : optional
-            If return values scaled to zero mean and unit variance (per gene)
+            If return values scaled to zero mean and unit variance (per factor)
         absolute_values : optional
             If return absolute values for weights
         """
@@ -510,23 +508,17 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factor_indices, factors = self.__check_factors(factors, unique=True)
 
         # concatenate views
-        w = np.concatenate(
-            tuple(np.array(self.weights[view]).T[:, factor_indices] for view in views)
-        )
+        w = list(np.array(self.weights[m]).T[:, factor_indices] for m in views)
 
-        # scale weights (per factor)
-        if scale:
-            w = (w - w.mean(axis=0)) / w.std(axis=0)
-
-        # take absolute value
-        if absolute_values:
-            w = np.absolute(w)
-
-        # return dataframe
-        if df:
-            w = pd.DataFrame(w)
-            w.columns = factors
-            w.index = np.concatenate(tuple(self.features[m] for m in views))
+        for m in range(len(views)):
+            if scale:
+                w[m] = (w[m] - w[m].mean(axis=0)) / w[m].std(axis=0)
+            if absolute_values:
+                w[m] = np.absolute(w[m])
+            if df:
+                w[m] = pd.DataFrame(w[m])
+                w[m].columns = factors
+                w[m].index = self.features[views[m]]
         return w
 
 
@@ -1082,6 +1074,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Calculate the inverse of W
         winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
+        winv = np.concatenate(winv)
 
         # Find feature intersection to match the dimensions
         if feature_intersection:
