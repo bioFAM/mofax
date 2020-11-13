@@ -345,7 +345,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         views: Union[str, int, List[str], List[int]] = None,
         n_features: int = None,
         clip_threshold: float = None,
-        scaled_values: bool = False,
+        scale: bool = False,
         absolute_values: bool = False,
         only_positive: bool = False,
         only_negative: bool = False,
@@ -434,10 +434,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
     def get_factors(
         self,
         groups: Union[str, int, List[str], List[int]] = None,
-        factors: Union[int, List[int]] = None,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
         df: bool = False,
-        scaled_values: bool = False,
-        absolute_values: bool = False,
+        concatenate_groups: bool = True,
+        scale: bool = False
+        # absolute_values: bool = False,
     ):
         """
         Get the matrix with factors as a NumPy array or as a DataFrame (df=True).
@@ -449,33 +450,43 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors : optional
             Indices of factors to consider
         df : optional
-            Boolean value if to return Z matrix as a DataFrame
-        scaled_values : optional
+            Boolean value if to return the factor matrix Z as a (wide) pd.DataFrame
+        scale : optional
             If return values scaled to zero mean and unit variance (per sample or cell)
-        absolute_values : optional
-            If return absolute values for factors
         """
+        # Sanity checks
+
         groups = self.__check_groups(groups)
         factor_indices, factors = self.__check_factors(factors)
-        z = np.concatenate(
-            tuple(np.array(self.factors[group]).T[:, factor_indices] for group in groups)
-        )
-        if scaled_values:
-            z = (z - z.mean(axis=0)) / z.std(axis=0)
-        if absolute_values:
-            z = np.absolute(z)
-        if df:
-            z = pd.DataFrame(z)
-            z.columns = factors
-            z.index = np.concatenate(tuple(self.samples[g] for g in groups))
-        return z
+
+        if concatenate_groups:
+            Z = np.concatenate(
+                tuple(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
+            )
+            # TO-DO: SCALING SHOULD BE PER FACTOR!
+            if scale:
+                Z = (Z - Z.mean(axis=0)) / Z.std(axis=0)
+            if df:
+                Z = pd.DataFrame(Z)
+                Z.columns = factors
+                Z.index = np.concatenate(tuple(self.samples[g] for g in groups))
+        else:
+            Z = list(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
+            if scale: 
+                raise NotImplementedError
+            if df:
+                for g in range(len(groups)):
+                    Z[g] = pd.DataFrame(Z[g])
+                    Z[g].columns = factors
+                    Z[g].index = self.samples[groups[g]]
+        return Z
 
     def get_weights(
         self,
         views: Union[str, int, List[str], List[int]] = None,
         factors: Union[int, List[int]] = None,
         df: bool = False,
-        scaled_values: bool = False,
+        scale: bool = False,
         absolute_values: bool = False,
     ):
         """
@@ -489,25 +500,39 @@ Expectations: {', '.join(self.expectations.keys())}"""
             Indices of factors to use
         df : optional
             Boolean value if to return W matrix as a DataFrame
-        scaled_values : optional
+        scale : optional
             If return values scaled to zero mean and unit variance (per gene)
         absolute_values : optional
             If return absolute values for weights
         """
+        # sanity checks
         views = self.__check_views(views)
         factor_indices, factors = self.__check_factors(factors, unique=True)
+
+        # concatenate views
         w = np.concatenate(
             tuple(np.array(self.weights[view]).T[:, factor_indices] for view in views)
         )
-        if scaled_values:
+
+        # scale weights (per factor)
+        if scale:
             w = (w - w.mean(axis=0)) / w.std(axis=0)
+
+        # take absolute value
         if absolute_values:
             w = np.absolute(w)
+
+        # return dataframe
         if df:
             w = pd.DataFrame(w)
             w.columns = factors
             w.index = np.concatenate(tuple(self.features[m] for m in views))
         return w
+
+
+
+
+
 
     def get_data(
         self,
@@ -517,7 +542,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         df: bool = False,
     ):
         """
-        Get the subset of the training data matrix as a NumPy array or as a DataFrame (df=True).
+        Fetch the training data
 
         Parameters
         ----------
