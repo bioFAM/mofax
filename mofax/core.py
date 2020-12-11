@@ -355,7 +355,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         # Fetch weights for the relevant factors
         w = (
             self.get_weights(
-                views=views, factors=factors, df=True, absolute_values=absolute_values
+                views=views, factors=factors, df=True, 
+                scaled_values=scaled_values, absolute_values=absolute_values
             )
             .rename_axis("feature")
             .reset_index()
@@ -781,6 +782,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     )
                 )
         return r2
+
+    get_variance_explained = get_r2
 
     def get_factor_r2_null(
         self,
