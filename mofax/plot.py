@@ -1371,6 +1371,8 @@ def plot_factors_dotplot(
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
     group_label: Optional[str] = None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
+    agg_color="mean",
+    agg_size="var",
     palette=None,
     vmin=None,
     vmax=None,
@@ -1392,12 +1394,16 @@ def plot_factors_dotplot(
         Sample (cell) metadata column to be used as group assignment
     groups : optional
         Group indices or names (all groups by default)
-    avg : optional
-        Aggregation function to average factor values per group (mean by default)
+    agg_color : optional
+        Aggregation function to average factor values per group 
+        to represent as colour (mean by default)
+    agg_size : optional
+        Aggregation function to average factor values per group
+        to represent as size (variance by default)
     palette : optional
         Colour palette (blue-white-red by default)
     vmin : optional
-        Min coolor value
+        Min color value
     vmax : optional
         Max colour value
     size : optional
@@ -1426,7 +1432,7 @@ def plot_factors_dotplot(
     # Add group information for samples (cells)
     z = z.set_index("sample").join(groups_df).reset_index()
 
-    z = z.groupby(["group", "factor"]).agg({"value": ["mean", "var"]}).reset_index()
+    z = z.groupby(["group", "factor"]).agg({"value": [agg_color, agg_size]}).reset_index()
     z.columns = ["group", "factor", "value_mean", "value_var"]
     z["abs_mean"] = np.abs(z.value_mean)
 
@@ -1918,6 +1924,7 @@ def plot_r2(
     plt.close()
     return fig
 
+plot_variance_explained = plot_r2
 
 def plot_r2_pvalues(
     model: mofa_model,
