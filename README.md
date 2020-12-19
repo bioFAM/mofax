@@ -87,6 +87,18 @@ model.get_factors(factors=range(3), df=True).head()
 # ACACCGAGGAGGTTGA-1  0.011766 -0.055964 -0.011298
 ```
 
+Variance explained by each factor per view and per group is calculated during the tranining and stored in the model file and can be accessed with `get_r2()`:
+
+```python
+model.get_r2().head()
+# 	Factor	View        Group	R2
+# 0	Factor1	drugs       group1	13.589131
+# 1	Factor1	methylation group1	17.330235
+# 2	Factor1	rna         group1	7.032133
+# 3	Factor1	mutations   group1	22.725224
+# 4	Factor2	drugs       group1	26.374409
+```
+
 #### Utility functions
 
 A few utility functions such as `calculate_factor_r2` to calculate the variance explained by a factor are provided as well.
