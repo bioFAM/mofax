@@ -1712,7 +1712,7 @@ def plot_factors_correlation(
 
     if covariates is not None:
         n_cov = covariates.shape[1]
-        # Transform a vector to a data frane
+        # Transform a vector to a data frame
         # Also ransform matrices and ndarrays to a data frame
         if len(covariates.shape) == 1 or not isinstance(covariates, pd.DataFrame):
             covariates = pd.DataFrame(covariates)
@@ -1776,7 +1776,7 @@ def plot_factors_correlation(
         mask=mask,
         center=center,
         square=True,
-        linewidths=0.5,
+        linewidths=linewidths,
         xticklabels=xticklabels,
         yticklabels=yticklabels,
         cbar_kws=cbar_kws,
