@@ -1813,6 +1813,118 @@ def plot_factors_covariates_correlation(
     )
 
 
+def plot_sparkline(model, features, factors, n_bins=20, avg="mean", 
+                   sharey=False, sharex=False, linewidth=2, palette=None,
+                   xticklabels_size=10, yticklabels_size=10, **kwargs):
+    """
+    Plot feature values along factor values 
+
+    Parameters
+    ----------
+    model : mofa_model
+        Factor model
+    features
+        Features names to be used
+    factors
+        Factor names
+    n_bins
+        Number of bins to generate from factor values
+    avg
+        A function name to average in bins ('mean' by default)
+    sharey: boolean
+        Common Y axis (False by default)
+    sharex: boolean
+        Common X axis (False by default)
+    linewidth
+        Line width (2 by default)
+    palette
+        Palette
+    xticklabels_size
+        Size of X tick labels
+    yticklabels_size
+        Size of Y tick labels
+    """
+    df_features = model.fetch_values(features)
+    df_factors = model.fetch_values(factors)
+    df = pd.concat([df_features, df_factors], axis=1)
+    
+    df_spark_list = []
+    
+    latent_from = np.floor(np.array(df_factors).min())
+    latent_to = np.ceil(np.array(df_factors).max())
+    latent_step = (latent_to - latent_from + 1) / n_bins
+    
+    for factor_name in factors:
+        for feature in features:
+            bins = np.arange(latent_from, latent_to, latent_step)
+
+            f_spark = pd.DataFrame(df.groupby(pd.cut(df[factor_name], bins=bins))[feature].agg(avg)).reset_index()
+            f_spark.columns = ["FactorValue", "FeatureValue"]
+            f_spark["Feature"] = feature
+            f_spark["Factor"] = factor_name
+            f_spark["FactorValue"] = f_spark.FactorValue.apply(lambda x: x.mid)
+            
+            df_spark_list.append(f_spark)
+
+    df_spark = pd.concat(df_spark_list, axis=0)
+
+
+    # Figure out rows & columns for the grid with plots (one plot per view)
+    ncols = len(set(factors))
+    nrows = len(set(features))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        sharex=sharex,
+        sharey=sharey,
+        figsize=(
+            ncols * rcParams["figure.figsize"][0],
+            nrows * rcParams["figure.figsize"][1],
+        ),
+    )
+    if ncols == 1:
+        axes = np.array(axes).reshape(-1, 1)
+    if nrows == 1:
+        axes = np.array(axes).reshape(1, -1)
+
+    for ci, fname in enumerate(factors):
+        for ri, feature in enumerate(features):
+
+            df_panel = df_spark.query("(Factor == @fname) & (Feature == @feature)")
+
+            # Construct the plot
+            g = sns.lineplot(
+                data=df_panel,
+                x="FactorValue",
+                y="FeatureValue",
+                linewidth=linewidth,
+                palette=palette,
+                ax=axes[ri, ci],
+                **kwargs,
+            )
+            sns.despine(offset=10, trim=True, ax=g)
+
+            plt.draw()
+
+
+            if ri == 0:
+                g.set_title(fname)
+                g.set_xticklabels([], size=xticklabels_size)
+            elif ri == (nrows-1):
+                g.set(xlabel=fname)
+                g.set_xticklabels(g.get_xticklabels(), size=xticklabels_size)
+            else:
+                g.set(xlabel='')
+                g.set_xticklabels([], size=xticklabels_size)
+
+            if ci == 0:
+                g.set(ylabel=feature)
+                g.set_yticklabels(g.get_yticklabels(), size=yticklabels_size)
+            else:
+                g.set(ylabel="")
+
+    return g
+
 ### VARIANCE EXPLAINED ###
 
 
