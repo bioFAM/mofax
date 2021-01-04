@@ -2,7 +2,7 @@
 
 Work with trained factor models in Python.
 
-This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python. For more information on the multi-omics factor analysis v2 framework please see [this GitHub repository](https://github.com/bioFAM/MOFA2).
+This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python. For more information on the multi-omics factor analysis v2 framework please see [mofapy2](https://github.com/bioFAM/mofapy2) and [MOFA2](https://github.com/bioFAM/MOFA2) GitHub repositories as well as [the website](https://biofam.github.io/MOFA2/).
 
 ## Getting started
 
