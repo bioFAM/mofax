@@ -811,7 +811,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         )
 
         for i in range(n_iter + 1):
-            # Canculate true group assignment for iteration 0
+            # Calculate true group assignment for iteration 0
             if i > 0:
                 groups_df.iloc[:, 0] = groups_df.iloc[:, 0].sample(frac=1).values
 
@@ -904,6 +904,45 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 )
             )
         return r2
+
+    def get_sample_r2(
+        self,
+        factors: Optional[Union[str, int, List[str], List[int]]] = None,
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None,
+        df: bool = True,
+    ) -> pd.DataFrame:
+        findices, factors = self.__check_factors(factors, unique=True)
+        groups = self.__check_groups(groups)
+        views = self.__check_views(views)
+
+        r2s = []
+        for view in views:
+            for group in groups:
+                crossprod = self.expectations["Z"][group][findices,:].T.dot(
+                    self.expectations["W"][view][findices,:]
+                )
+                y = np.array(self.data[view][group])
+                a = np.nansum((y - crossprod) ** 2.0, axis=1)
+                b = np.nansum(y ** 2, axis=1)
+
+                r2_df_mg = pd.DataFrame({
+                    "Sample": self.samples[group],
+                    "Group": group,
+                    "View": view,
+                    "R2": (1.0 - a / b),
+                })
+
+                r2s.append(r2_df_mg)
+
+        r2_df = pd.concat(r2s, axis=0, ignore_index=True)
+
+        if df:
+            return r2_df
+        else:
+            r2_mx = np.array(r2_df.pivot(index="Sample", columns="View", values="R2"))
+            return r2_mx
+
 
     def project_data(
         self,
