@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mofax",
-    version="0.3.2",
+    version="0.3.3",
     author="Danila Bredikhin",
     author_email="danila.bredikhin@embl.de",
     description="Load and interpret MOFA models",
