@@ -13,6 +13,7 @@ def calculate_r2(Z, W, Y):
     r2 = (1.0 - a / b) * 100
     return r2
 
+
 # def load_samples_metadata(model):
 
 #     # Define metadata template
@@ -47,7 +48,7 @@ def calculate_r2(Z, W, Y):
 #                 model["samples_metadata"][model.groups[0]].keys()
 #             )
 
-#             # Merge 
+#             # Merge
 #             if "group" in tmp.columns:
 #                 del tmp["group"]
 #             if "sample" in tmp.columns:

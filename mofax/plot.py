@@ -96,9 +96,12 @@ def plot_weights(
         scale=w_scaled,
         absolute_values=w_abs,
     )[0]
-    wm = w.join(model.features_metadata.loc[:, ["view"]]) \
-        .rename_axis("feature").reset_index() \
+    wm = (
+        w.join(model.features_metadata.loc[:, ["view"]])
+        .rename_axis("feature")
+        .reset_index()
         .melt(id_vars=["feature", "view"], var_name="factor", value_name="value")
+    )
 
     wm["abs_value"] = abs(wm.value)
 
