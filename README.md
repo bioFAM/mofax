@@ -36,11 +36,11 @@ model.close()
 
 #### Model object
 
-Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings (weights) eliminating the need to traverse the HDF5 file manually.
+Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings (weights) eliminating the need to traverse the HDF5 file manually. The original connection to the HDF5 file is exposed via the `model.model` attribute.
 
 #### Model methods
 
-Simple data structures (e.g. lists or dictionaries) are typically returned upon calling the properties of the mofa model, e.g. `model.shape`:
+Simple data structures (e.g. lists or dictionaries) are typically returned upon accessing the properties of the mofa model, e.g. `model.shape`:
 
 ```python
 model.shape
@@ -48,7 +48,7 @@ model.shape
 #         cells^  ^features
 ```
 
-More complex structures are typically returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
+More complex structures are typically returned when calling methods such as `model.get_samples()` to get `sample -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model. `model.get_cells()` works the same way.
 
 ```python
 model.get_cells().head()
