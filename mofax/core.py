@@ -195,6 +195,26 @@ class mofa_model:
 
         self.features_metadata = self.features_metadata.set_index("feature")
 
+        ### MEFISTO ###
+
+        # Interpolated Z
+
+        # Keep the structure similar to self.factors:
+        # e.g. self.interpolated_factors["mean"]["group1"]
+        # will refer to an HDF5 group with the dataset
+        # of shape (n_new_values, n_factors)
+        if "Z_predictions" in self.model:
+            self.interpolated_factors = dict()
+            for attr in "mean", "variance":
+                if attr in self.model["Z_predictions"][self.groups[0]]:
+                    self.interpolated_factors[attr] = {
+                        g: self.model["Z_predictions"][g][attr] for g in self.groups
+                    }
+            if "new_values" in self.model["Z_predictions"]:
+                self.interpolated_factors["new_values"] = self.model["Z_predictions"][
+                    "new_values"
+                ]
+
     def __repr__(self):
         return f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
@@ -442,8 +462,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         df: bool = False,
         concatenate_groups: bool = True,
-        scale: bool = False
-        # absolute_values: bool = False,
+        scale: bool = False,
+        absolute_values: bool = False,
     ):
         """
         Get the matrix with factors as a NumPy array or as a DataFrame (df=True).
@@ -456,34 +476,149 @@ Expectations: {', '.join(self.expectations.keys())}"""
             Indices of factors to consider
         df : optional
             Boolean value if to return the factor matrix Z as a (wide) pd.DataFrame
+        concatenate_groups : optional
+            If concatenate Z matrices (True by default)
         scale : optional
-            If return values scaled to zero mean and unit variance (per sample or cell)
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per group otherwise)
+        absolute_values : optional
+            If return absolute values for weights
         """
-        # Sanity checks
 
         groups = self._check_groups(groups)
         factor_indices, factors = self._check_factors(factors)
 
+        # get factors
+        z = list(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
+
+        # consider transformations
+        for g in range(len(groups)):
+            if not concatenate_groups:
+                if scale:
+                    z[g] = (z[g] - z[g].mean(axis=0)) / z[g].std(axis=0)
+                if absolute_values:
+                    z[g] = np.absolute(z[g])
+            if df:
+                z[g] = pd.DataFrame(z[g])
+                z[g].columns = factors
+                z[g].index = self.samples[groups[g]]
+
+        # concatenate views if requested
         if concatenate_groups:
-            Z = np.concatenate(
-                tuple(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
+            z = pd.concat(z) if df else np.concatenate(z)
+            if scale:
+                z = (z - z.mean(axis=0)) / z.std(axis=0)
+            if absolute_values:
+                z = np.absolute(z)
+
+        return z
+
+    def get_interpolated_factors(
+        self,
+        groups: Union[str, int, List[str], List[int]] = None,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
+        df: bool = False,
+        df_long: bool = False,
+        concatenate_groups: bool = True,
+        scale: bool = False,
+        absolute_values: bool = False,
+    ):
+        """
+        Get the matrix with interpolated factors.
+
+        If df_long is False, a dictionary with keys ("mean", "variance") is returned
+        with NumPy arrays (df=False) or DataFrames (df=True) as values.
+
+        If df_long is True, a DataFrame with columns ("new_value", "factor", "mean", "variance")
+        is returned.
+
+
+        Parameters
+        ----------
+        groups : optional
+            List of groups to consider
+        factors : optional
+            Indices of factors to consider
+        df : optional
+            Boolean value if to return mean and variance matrices as (wide) DataFrames
+            (can be superseded by df_long=True)
+        df_long : optional
+            Boolean value if to return a single long DataFrame
+            (supersedes df=False and concatenate_groups=False)
+        concatenate_groups : optional
+            If concatenate Z matrices (True by default, can be superseded by df_long=True)
+        scale : optional
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per group otherwise)
+        absolute_values : optional
+            If return absolute values for weights
+        """
+
+        groups = self._check_groups(groups)
+        factor_indices, factors = self._check_factors(factors)
+
+        z_interpolated = dict()
+
+        for stat in ["mean", "variance"]:
+            # get factors
+            z = list(
+                np.array(self.interpolated_factors[stat][g])[:, factor_indices]
+                for g in groups
             )
-            if scale:
-                Z = (Z - Z.mean(axis=0)) / Z.std(axis=0)
-            if df:
-                Z = pd.DataFrame(Z)
-                Z.columns = factors
-                Z.index = np.concatenate(tuple(self.samples[g] for g in groups))
-        else:
-            Z = list(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
-            if scale:
-                raise NotImplementedError
-            if df:
-                for g in range(len(groups)):
-                    Z[g] = pd.DataFrame(Z[g])
-                    Z[g].columns = factors
-                    Z[g].index = self.samples[groups[g]]
-        return Z
+
+            # consider transformations
+            for g in range(len(groups)):
+                if not concatenate_groups:
+                    if scale:
+                        z[g] = (z[g] - z[g].mean(axis=0)) / z[g].std(axis=0)
+                    if absolute_values:
+                        z[g] = np.absolute(z[g])
+                if df or df_long:
+                    z[g] = pd.DataFrame(z[g])
+                    z[g].columns = factors
+
+                    if "new_values" in self.interpolated_factors:
+                        new_values = np.array(
+                            self.interpolated_factors["new_values"]
+                        ).squeeze()
+                    else:
+                        new_values = np.arange(z[g].shape[0]).astype(str)
+
+                    # If groups are to be concatenated (but not in a long DataFrame),
+                    # index has to be made unique per group
+                    if concatenate_groups and not df_long:
+                        new_values = [f"{groups[g]}_{value}" for value in new_values]
+
+                    z[g].index = new_values
+
+            # concatenate views if requested
+            if concatenate_groups:
+                z = pd.concat(z) if df or df_long else np.concatenate(z)
+                if scale:
+                    z = (z - z.mean(axis=0)) / z.std(axis=0)
+                if absolute_values:
+                    z = np.absolute(z)
+
+            # melt DataFrames
+            if df_long:
+                if not concatenate_groups:  # supersede
+                    z = pd.concat(z)
+                z = (
+                    z.rename_axis("new_value", axis=0)
+                    .reset_index()
+                    .melt(id_vars="new_value", var_name="factor", value_name=stat)
+                )
+
+            z_interpolated[stat] = z
+
+        if df_long:
+            z_interpolated = (
+                z_interpolated["mean"]
+                .set_index(["new_value", "factor"])
+                .merge(z_interpolated["variance"], on=("new_value", "factor"))
+            )
+
+        return z_interpolated
 
     def get_weights(
         self,
@@ -491,6 +626,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Union[int, List[int]] = None,
         df: bool = False,
         scale: bool = False,
+        concatenate_views: bool = True,
         absolute_values: bool = False,
     ):
         """
@@ -505,26 +641,40 @@ Expectations: {', '.join(self.expectations.keys())}"""
         df : optional
             Boolean value if to return W matrix as a (wide) pd.DataFrame
         scale : optional
-            If return values scaled to zero mean and unit variance (per factor)
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per view otherwise)
+        concatenate_weights : optional
+            If concatenate W matrices (True by default)
         absolute_values : optional
             If return absolute values for weights
         """
-        # sanity checks
+
         views = self._check_views(views)
         factor_indices, factors = self._check_factors(factors, unique=True)
 
-        # concatenate views
+        # get views
         w = list(np.array(self.weights[m]).T[:, factor_indices] for m in views)
 
+        # consider transformations
         for m in range(len(views)):
-            if scale:
-                w[m] = (w[m] - w[m].mean(axis=0)) / w[m].std(axis=0)
-            if absolute_values:
-                w[m] = np.absolute(w[m])
+            if not concatenate_views:
+                if scale:
+                    w[m] = (w[m] - w[m].mean(axis=0)) / w[m].std(axis=0)
+                if absolute_values:
+                    w[m] = np.absolute(w[m])
             if df:
                 w[m] = pd.DataFrame(w[m])
                 w[m].columns = factors
                 w[m].index = self.features[views[m]]
+
+        # concatenate views if requested
+        if concatenate_views:
+            w = pd.concat(w) if df else np.concatenate(w)
+            if scale:
+                w = (w - w.mean(axis=0)) / w.std(axis=0)
+            if absolute_values:
+                w = np.absolute(w)
+
         return w
 
     def get_data(
