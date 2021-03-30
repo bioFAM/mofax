@@ -626,7 +626,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Union[int, List[int]] = None,
         df: bool = False,
         scale: bool = False,
-        concatenate_views: bool = True,
+        concatenate_views: bool = False,
         absolute_values: bool = False,
     ):
         """
@@ -788,7 +788,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         )
         print("UMAP coordinates added to the samples_metadata")
 
-    def _fetch_values(self, variables: Union[str, List[str]]):
+    def fetch_values(self, variables: Union[str, List[str]], unique: bool = True):
         """
         Fetch metadata column, factors, or feature values.
         Shorthand to get_data, get_factors, and metadata calls.
@@ -804,7 +804,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Remove None values and duplicates
         variables = [i for i in variables if i is not None]
-        variables = list(set(variables))
+        # Transform integers to factors
+        variables = [f"Factor{i+1}" if isinstance(i, int) else i for i in variables]
+        if unique:
+            variables = pd.Series(variables).drop_duplicates().tolist()
 
         var_meta = list()
         var_features = list()
@@ -830,7 +833,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             var_list.append(self.get_factors(factors=var_factors, df=True))
 
         # Return a DataFrame with columns ordered as requested
-        return pd.concat(var_list, axis=1)[variables]
+        return pd.concat(var_list, axis=1).loc[:,variables]
 
     def _check_views(self, views):
         if views is None:
