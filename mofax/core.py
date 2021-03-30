@@ -8,6 +8,7 @@ from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
 
+from .utils import _load_samples_metadata, _load_features_metadata, _load_covariates
 from .utils import *
 
 
@@ -85,119 +86,16 @@ class mofa_model:
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
         # Define samples metadata
-        # (TO-DO) load_samples_metadata(self.model)
-
-        self._samples_metadata = pd.DataFrame(
-            [
-                [cell, group]
-                for group, cell_list in self.samples.items()
-                for cell in cell_list
-            ],
-            columns=["sample", "group"],
-        )
-        if "samples_metadata" in self.model:
-            if len(list(self.model["samples_metadata"][self.groups[0]].keys())) > 0:
-                samples_metadata = pd.concat(
-                    [
-                        pd.concat(
-                            [
-                                pd.Series(self.model["samples_metadata"][g][k])
-                                for k in self.model["samples_metadata"][g].keys()
-                            ],
-                            axis=1,
-                        )
-                        for g in self.groups
-                    ],
-                    axis=0,
-                )
-                samples_metadata.columns = list(
-                    self.model["samples_metadata"][self.groups[0]].keys()
-                )
-
-                if "group" in samples_metadata.columns:
-                    del samples_metadata["group"]
-                if "sample" in samples_metadata.columns:
-                    del samples_metadata["sample"]
-
-                self.samples_metadata = pd.concat(
-                    [
-                        self._samples_metadata.reset_index(drop=True),
-                        samples_metadata.reset_index(drop=True),
-                    ],
-                    axis=1,
-                )
-
-                # Decode objects as UTF-8 strings
-                for column in self.samples_metadata.columns:
-                    if self.samples_metadata[column].dtype == "object":
-                        try:
-                            self.samples_metadata[column] = [
-                                i.decode() for i in self.samples_metadata[column].values
-                            ]
-                        except (UnicodeDecodeError, AttributeError):
-                            pass
-
-        self._samples_metadata = self._samples_metadata.set_index("sample")
+        self._samples_metadata = _load_samples_metadata(self)
 
         # Define features metadata
-        # (TO-DO) load_features_metadata(self.model)
-        self.features_metadata = pd.DataFrame(
-            [
-                [feature, view]
-                for view, feature_list in self.features.items()
-                for feature in feature_list
-            ],
-            columns=["feature", "view"],
-        )
-        if "features_metadata" in self.model:
-            if len(list(self.model["features_metadata"][self.views[0]].keys())) > 0:
-                features_metadata_dict = {
-                    m: pd.concat(
-                        [
-                            pd.Series(self.model["features_metadata"][m][k])
-                            for k in self.model["features_metadata"][m].keys()
-                        ],
-                        axis=1,
-                    )
-                    for m in self.views
-                }
-
-                for m in features_metadata_dict.keys():
-                    features_metadata_dict[m].columns = list(
-                        self.model["features_metadata"][m].keys()
-                    )
-
-                features_metadata = pd.concat(features_metadata_dict, axis=0)
-
-                if "view" in features_metadata.columns:
-                    del features_metadata["view"]
-                if "feature" in features_metadata.columns:
-                    del features_metadata["feature"]
-
-                self.features_metadata = pd.concat(
-                    [
-                        self._features_metadata.reset_index(drop=True),
-                        features_metadata.reset_index(drop=True),
-                    ],
-                    axis=1,
-                )
-
-                # Decode objects as UTF-8 strings
-                for column in self.features_metadata.columns:
-                    if self.features_metadata[column].dtype == "object":
-                        try:
-                            self.features_metadata[column] = [
-                                i.decode()
-                                for i in self.features_metadata[column].values
-                            ]
-                        except (UnicodeDecodeError, AttributeError):
-                            pass
-
-        self.features_metadata = self.features_metadata.set_index("feature")
+        self._features_metadata = _load_features_metadata(self)
+        
 
         ### MEFISTO ###
 
         # Interpolated Z
+        self.interpolated_factors = None
 
         # Keep the structure similar to self.factors:
         # e.g. self.interpolated_factors["mean"]["group1"]
@@ -215,14 +113,30 @@ class mofa_model:
                     "new_values"
                 ]
 
+        # Samples covariates
+        self.covariates = _load_covariates(self)
+
     def __repr__(self):
-        return f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
+        mofa_repr = f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
 Features: {self.shape[1]}
 Groups: {', '.join([f"{k} ({len(v)})" for k, v in self.samples.items()])}
 Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}
 Factors: {self.nfactors}
 Expectations: {', '.join(self.expectations.keys())}"""
+        
+        # MEFISTO
+        mefisto_repr = ""
+        if self.interpolated_factors is not None:
+            mefisto_repr += f"\nInterpolated factors for {str(len(self.interpolated_factors['new_values']))} new values"
+        if self.covariates is not None:
+            mefisto_repr += f"\nCovariates available: {' ,'.join(self.covariates.columns[1:])}"
+
+        if mefisto_repr != "":
+            mofa_repr += "\n\nMEFISTO:" + mefisto_repr
+
+        return mofa_repr
+
 
     # Alias samples as cells
     @property
@@ -956,6 +870,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]
 
         return (factor_indices, factors)
+
+
+    # Variance explained (R2)
 
     def calculate_variance_explained(
         self,
