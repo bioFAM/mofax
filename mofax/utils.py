@@ -119,7 +119,6 @@ def _load_features_metadata(model):
     return features_metadata
 
 
-
 def _load_covariates(model):
     # Covariates names
     cov_names = None
@@ -129,9 +128,7 @@ def _load_covariates(model):
             cov_root = cov_root["covariates"]
         cov_names = np.array(cov_root)
         try:
-            cov_names = [
-                i.decode() for i in cov_names
-            ]
+            cov_names = [i.decode() for i in cov_names]
         except (UnicodeDecodeError, AttributeError):
             pass
     else:
@@ -139,9 +136,9 @@ def _load_covariates(model):
             cov_len = model.model["cov_samples"][model.groups[0]].shape[-1]
             cov_names = [f"Covariates{i+1}" for i in range(cov_len)]
         else:
-            return None
+            return None, None
 
-    # Covariates values 
+    # Covariates values
     samples_covariates = pd.DataFrame(
         [
             [cell, group]
@@ -163,12 +160,16 @@ def _load_covariates(model):
                 elif attr == "cov_samples_transformed":
                     attr_covariates.columns = [f"{n}_transformed" for n in cov_names]
                 else:
-                    attr_covariates.columns = [f"{attr}{i+1}" for i in range(attr_covariates.shape[-1])]
-                samples_covariates = pd.concat([samples_covariates, attr_covariates], axis=1)
+                    attr_covariates.columns = [
+                        f"{attr}{i+1}" for i in range(attr_covariates.shape[-1])
+                    ]
+                samples_covariates = pd.concat(
+                    [samples_covariates, attr_covariates], axis=1
+                )
 
     # Covariates are None when there is only sample name and group name
     if len(samples_covariates.columns) == 2:
-        return None
+        return None, None
 
     samples_covariates = samples_covariates.set_index("sample")
 

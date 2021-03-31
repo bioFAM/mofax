@@ -522,7 +522,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 z = (
                     z.rename_axis("new_sample", axis=0)
                     .reset_index()
-                    .melt(id_vars=["new_sample", "new_value", "group"], var_name="factor", value_name=stat)
+                    .melt(
+                        id_vars=["new_sample", "new_value", "group"],
+                        var_name="factor",
+                        value_name=stat,
+                    )
                 )
 
             z_interpolated[stat] = z
@@ -531,7 +535,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
             z_interpolated = (
                 z_interpolated["mean"]
                 .set_index(["new_sample", "new_value", "group", "factor"])
-                .merge(z_interpolated["variance"], on=("new_sample", "new_value", "group", "factor"))
+                .merge(
+                    z_interpolated["variance"],
+                    on=("new_sample", "new_value", "group", "factor"),
+                )
             )
 
         return z_interpolated
@@ -715,7 +722,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         variables : str
             Features, metadata columns, or factors (FactorN) to fetch.
             For MEFISTO models with covariates, covariates are accepted
-            such as 'cov_samples' and 'cov_samples_transformed'.
+            such as 'covariate1' or 'covariate1_transformed'.
         """
         # If a sole variable name is used, wrap it in a list
         if not isinstance(variables, Iterable) or isinstance(variables, str):
@@ -743,7 +750,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 var_factors.append(var.capitalize())
             elif (
                 self.covariates_names is not None
-                and (var in self.covariates_names
+                and (
+                    var in self.covariates_names
                     or var in [f"{cov}_transformed" for cov in self.covariates_names]
                 )
                 and self.covariates is not None
