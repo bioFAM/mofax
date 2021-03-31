@@ -39,7 +39,7 @@ class TestMofaModelMethods(unittest.TestCase):
     #     self.model.run_umap()
 
     def test_variance_explained(self):
-        self.model.calculate_variance_explained(factors=[1,2,3])
+        self.model.calculate_variance_explained(factors=[1, 2, 3])
         self.model.get_variance_explained()
 
     def tearDown(self):
@@ -55,6 +55,7 @@ class TestMofaModelMethods(unittest.TestCase):
 
 #     def tearDown(self):
 #         self.model.close()
+
 
 class TestPlotting(unittest.TestCase):
     def setUp(self):
