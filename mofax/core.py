@@ -90,7 +90,6 @@ class mofa_model:
 
         # Define features metadata
         self._features_metadata = _load_features_metadata(self)
-        
 
         ### MEFISTO ###
 
@@ -114,7 +113,7 @@ class mofa_model:
                 ]
 
         # Samples covariates
-        self.covariates = _load_covariates(self)
+        self.covariates_names, self.covariates = _load_covariates(self)
 
     def __repr__(self):
         mofa_repr = f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
@@ -124,19 +123,20 @@ Groups: {', '.join([f"{k} ({len(v)})" for k, v in self.samples.items()])}
 Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}
 Factors: {self.nfactors}
 Expectations: {', '.join(self.expectations.keys())}"""
-        
+
         # MEFISTO
         mefisto_repr = ""
         if self.interpolated_factors is not None:
             mefisto_repr += f"\nInterpolated factors for {str(len(self.interpolated_factors['new_values']))} new values"
         if self.covariates is not None:
-            mefisto_repr += f"\nCovariates available: {' ,'.join(self.covariates.columns[1:])}"
+            mefisto_repr += (
+                f"\nCovariates available: {', '.join(self.covariates_names)}"
+            )
 
         if mefisto_repr != "":
             mofa_repr += "\n\nMEFISTO:" + mefisto_repr
 
         return mofa_repr
-
 
     # Alias samples as cells
     @property
@@ -490,6 +490,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 if df or df_long:
                     z[g] = pd.DataFrame(z[g])
                     z[g].columns = factors
+                    z[g]["group"] = self.groups[g]
 
                     if "new_values" in self.interpolated_factors:
                         new_values = np.array(
@@ -498,12 +499,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     else:
                         new_values = np.arange(z[g].shape[0]).astype(str)
 
+                    z[g]["new_value"] = new_values
+
                     # If groups are to be concatenated (but not in a long DataFrame),
                     # index has to be made unique per group
-                    if concatenate_groups and not df_long:
-                        new_values = [f"{groups[g]}_{value}" for value in new_values]
+                    new_samples = [f"{groups[g]}_{value}" for value in new_values]
 
-                    z[g].index = new_values
+                    z[g].index = new_samples
 
             # concatenate views if requested
             if concatenate_groups:
@@ -518,9 +520,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 if not concatenate_groups:  # supersede
                     z = pd.concat(z)
                 z = (
-                    z.rename_axis("new_value", axis=0)
+                    z.rename_axis("new_sample", axis=0)
                     .reset_index()
-                    .melt(id_vars="new_value", var_name="factor", value_name=stat)
+                    .melt(id_vars=["new_sample", "new_value", "group"], var_name="factor", value_name=stat)
                 )
 
             z_interpolated[stat] = z
@@ -528,8 +530,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if df_long:
             z_interpolated = (
                 z_interpolated["mean"]
-                .set_index(["new_value", "factor"])
-                .merge(z_interpolated["variance"], on=("new_value", "factor"))
+                .set_index(["new_sample", "new_value", "group", "factor"])
+                .merge(z_interpolated["variance"], on=("new_sample", "new_value", "group", "factor"))
             )
 
         return z_interpolated
@@ -704,13 +706,16 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
     def fetch_values(self, variables: Union[str, List[str]], unique: bool = True):
         """
-        Fetch metadata column, factors, or feature values.
-        Shorthand to get_data, get_factors, and metadata calls.
+        Fetch metadata column, factors, or feature values
+        as well as covariates.
+        Shorthand to get_data, get_factors, metadata, and covariates calls.
 
         Parameters
         ----------
         variables : str
-            Features, metadata columns, or factors (FactorN) to fetch
+            Features, metadata columns, or factors (FactorN) to fetch.
+            For MEFISTO models with covariates, covariates are accepted
+            such as 'cov_samples' and 'cov_samples_transformed'.
         """
         # If a sole variable name is used, wrap it in a list
         if not isinstance(variables, Iterable) or isinstance(variables, str):
@@ -719,13 +724,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
         # Remove None values and duplicates
         variables = [i for i in variables if i is not None]
         # Transform integers to factors
-        variables = [f"Factor{i+1}" if isinstance(i, int) else i for i in variables]
+        variables = maybe_factor_indices_to_factors(variables)
         if unique:
             variables = pd.Series(variables).drop_duplicates().tolist()
 
         var_meta = list()
         var_features = list()
         var_factors = list()
+        var_covariates = list()
 
         # Split all the variables into metadata and features
         for i, var in enumerate(variables):
@@ -735,6 +741,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 # Unify factor naming
                 variables[i] = var.capitalize()
                 var_factors.append(var.capitalize())
+            elif (
+                self.covariates_names is not None
+                and (var in self.covariates_names
+                    or var in [f"{cov}_transformed" for cov in self.covariates_names]
+                )
+                and self.covariates is not None
+            ):
+                var_covariates.append(var)
             else:
                 var_features.append(var)
 
@@ -745,9 +759,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
             var_list.append(self.get_data(var_features, df=True))
         if len(var_factors) > 0:
             var_list.append(self.get_factors(factors=var_factors, df=True))
+        if len(var_covariates) > 0:
+            var_list.append(self.covariates[var_covariates])
 
         # Return a DataFrame with columns ordered as requested
-        return pd.concat(var_list, axis=1).loc[:,variables]
+        return pd.concat(var_list, axis=1).loc[:, variables]
 
     def _check_views(self, views):
         if views is None:
@@ -870,7 +886,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]
 
         return (factor_indices, factors)
-
 
     # Variance explained (R2)
 
