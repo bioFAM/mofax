@@ -45,7 +45,8 @@ Simple data structures (e.g. lists or dictionaries) are typically returned upon 
 ```python
 model.shape
 # returns (10138, 1124)
-#         cells^  ^features
+#       samples^  ^features
+#       (cells)
 ```
 
 More complex structures are typically returned when calling methods such as `model.get_samples()` to get `sample -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model. `model.get_cells()` works the same way.
@@ -98,6 +99,10 @@ model.get_r2().head()
 # 3	Factor1	mutations   group1	22.725224
 # 4	Factor2	drugs       group1	26.374409
 ```
+
+#### MEFISTO models support
+
+[MEFISTO models](https://biofam.github.io/MOFA2/MEFISTO) can feature a few additional concepts such as _covariates_ and _interpolated factors_. Covariates can be accessed via `model.covariates_names` and `model.covariates`. If interpolated factors were learnt for new values during training, they are exposed at `model.interpolated_factors` and also can be obtained in a long DataFrame with `model.get_interpolated_factors(df_long=True)`.
 
 #### Utility functions
 
