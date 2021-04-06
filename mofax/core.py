@@ -8,7 +8,12 @@ from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
 
-from .utils import _load_samples_metadata, _load_features_metadata, _load_covariates, _read_simple
+from .utils import (
+    _load_samples_metadata,
+    _load_features_metadata,
+    _load_covariates,
+    _read_simple,
+)
 from .utils import *
 
 
@@ -134,7 +139,6 @@ class mofa_model:
         for mod_opts_key in ("smooth_opts", "smooth_options", "mefisto_options"):
             if mod_opts_key in self.model:
                 self.options["smooth"] = _read_simple(self.model[mod_opts_key])
-
 
     def __repr__(self):
         mofa_repr = f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
@@ -495,9 +499,16 @@ Expectations: {', '.join(self.expectations.keys())}"""
         z_interpolated = dict()
         new_values_names = tuple()
         if self.covariates_names:
-            new_values_names = tuple([f"new_{value}" for value in self.covariates_names])
+            new_values_names = tuple(
+                [f"new_{value}" for value in self.covariates_names]
+            )
         else:
-            new_values_names = tuple([f"new_value{i}" for i in range(self.interpolated_factors["new_values"].shape[1])])
+            new_values_names = tuple(
+                [
+                    f"new_value{i}"
+                    for i in range(self.interpolated_factors["new_values"].shape[1])
+                ]
+            )
 
         for stat in ["mean", "variance"]:
             # get factors
@@ -519,9 +530,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     z[g]["group"] = self.groups[g]
 
                     if "new_values" in self.interpolated_factors:
-                        new_values = np.array(
-                            self.interpolated_factors["new_values"]
-                        )
+                        new_values = np.array(self.interpolated_factors["new_values"])
                     else:
                         new_values = np.arange(z[g].shape[0]).reshape(-1, 1)
 
@@ -531,7 +540,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
                     # If groups are to be concatenated (but not in a long DataFrame),
                     # index has to be made unique per group
-                    new_samples = [f"{groups[g]}_{'_'.join(value.astype(str))}" for _, value in new_values.iterrows()]
+                    new_samples = [
+                        f"{groups[g]}_{'_'.join(value.astype(str))}"
+                        for _, value in new_values.iterrows()
+                    ]
 
                     z[g].index = new_samples
 
@@ -576,8 +588,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
     def get_group_kernel(self):
         model_groups = False
-        if self.options and "smooth" in self.options and "model_groups" in self.options["smooth"]:
-            model_groups = bool(self.options['smooth']['model_groups'].item().decode())
+        if (
+            self.options
+            and "smooth" in self.options
+            and "model_groups" in self.options["smooth"]
+        ):
+            model_groups = bool(self.options["smooth"]["model_groups"].item().decode())
 
         kernels = list()
         if not model_groups or self.ngroups == 1:
@@ -585,9 +601,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
             return Kg
         else:
             if self.training_stats and "Kg" in self.training_stats:
-                return self.training_stats['Kg']
+                return self.training_stats["Kg"]
             else:
-                raise ValueError("No group kernel was saved. Specify the covariates and train the MEFISTO model with the option 'model_groups' set to True.")
+                raise ValueError(
+                    "No group kernel was saved. Specify the covariates and train the MEFISTO model with the option 'model_groups' set to True."
+                )
 
     def get_weights(
         self,

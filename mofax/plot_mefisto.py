@@ -16,6 +16,7 @@ from .plot_utils import _plot_grid
 sns.set_style("ticks")
 sns.set_palette("Set2")
 
+
 def plot_interpolated_factors(
     model: mofa_model,
     factors: Union[int, List[int]] = None,
@@ -213,8 +214,11 @@ def plot_interpolated_factors(
 
 ### MEFISTO ###
 
-def plot_group_kernel(model, groups=None, factors=None, palette=None, vmin=-1, vmax=1, ncols=4, **kwargs):
-    
+
+def plot_group_kernel(
+    model, groups=None, factors=None, palette=None, vmin=-1, vmax=1, ncols=4, **kwargs
+):
+
     z = model.get_factors(factors=factors, groups=groups)
     factor_indices, factors = model._check_factors(factors, unique=True)
 
@@ -223,9 +227,13 @@ def plot_group_kernel(model, groups=None, factors=None, palette=None, vmin=-1, v
     group_indices = [np.where(all_groups == gr)[0][0] for gr in groups]
 
     # Get group kernels
-    Kgs = model.get_group_kernel()[factor_indices,:,:][:,group_indices,:][:,:,group_indices]
+    Kgs = model.get_group_kernel()[factor_indices, :, :][:, group_indices, :][
+        :, :, group_indices
+    ]
 
-    df_list = [pd.DataFrame(Kgs[i], index=groups, columns=groups) for i in range(Kgs.shape[0])]
+    df_list = [
+        pd.DataFrame(Kgs[i], index=groups, columns=groups) for i in range(Kgs.shape[0])
+    ]
 
     if palette is None:
         palette = "RdBu_r"
@@ -256,13 +264,21 @@ def plot_group_kernel(model, groups=None, factors=None, palette=None, vmin=-1, v
             axes = np.array(axes).reshape(-1, 1)
         if nrows == 1:
             axes = np.array(axes).reshape(1, -1)
-        
+
         for i, factor in enumerate(factors):
 
             ri = i // ncols
             ci = i % ncols
 
-            g = sns.heatmap(df_list[i], square=True, cmap=palette, vmin=vmin, vmax=vmax, ax=axes[ri,ci], **kwargs)
+            g = sns.heatmap(
+                df_list[i],
+                square=True,
+                cmap=palette,
+                vmin=vmin,
+                vmax=vmax,
+                ax=axes[ri, ci],
+                **kwargs,
+            )
             g.set(ylabel="Group", xlabel="Group", title=factor)
             g.set_yticklabels(g.yaxis.get_ticklabels(), rotation=0)
 
@@ -277,5 +293,4 @@ def plot_group_kernel(model, groups=None, factors=None, palette=None, vmin=-1, v
     plt.tight_layout()
 
     return g
-
 

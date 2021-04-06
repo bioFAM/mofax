@@ -7,6 +7,7 @@ import h5py
 ## Loading metadata  ##
 #######################
 
+
 def _load_samples_metadata(model):
     samples_metadata = pd.DataFrame(
         [
@@ -179,13 +180,15 @@ def _load_covariates(model):
 #### Reading HDF5 #####
 #######################
 
+
 def _read_simple(data):
     if isinstance(data, h5py.Group):
-        return {k:np.array(v) for k, v in data.items()}
+        return {k: np.array(v) for k, v in data.items()}
     elif isinstance(data, h5py.Dataset):
         return np.array(data)
     else:
         raise ValueError("Attempting to read neither Group nor Dataset from HDF5 file")
+
 
 #######################
 ## Utility functions ##

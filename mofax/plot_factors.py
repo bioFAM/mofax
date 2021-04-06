@@ -177,7 +177,6 @@ def plot_factors_scatter(
 plot_factors = plot_factors_scatter
 
 
-
 def _plot_factors(
     plot_func,
     model: mofa_model,
