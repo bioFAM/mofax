@@ -472,6 +472,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factor_indices, factors = self._check_factors(factors)
 
         z_interpolated = dict()
+        new_values_names = tuple()
+        if self.covariates_names:
+            new_values_names = tuple([f"new_{value}" for value in self.covariates_names])
+        else:
+            new_values_names = tuple([f"new_value{i}" for i in range(self.interpolated_factors["new_values"].shape[1])])
 
         for stat in ["mean", "variance"]:
             # get factors
@@ -495,15 +500,17 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     if "new_values" in self.interpolated_factors:
                         new_values = np.array(
                             self.interpolated_factors["new_values"]
-                        ).squeeze()
+                        )
                     else:
-                        new_values = np.arange(z[g].shape[0]).astype(str)
+                        new_values = np.arange(z[g].shape[0]).reshape(-1, 1)
 
-                    z[g]["new_value"] = new_values
+                    new_values = pd.DataFrame(new_values, columns=new_values_names)
+
+                    z[g] = pd.concat([z[g], new_values], axis=1)
 
                     # If groups are to be concatenated (but not in a long DataFrame),
                     # index has to be made unique per group
-                    new_samples = [f"{groups[g]}_{value}" for value in new_values]
+                    new_samples = [f"{groups[g]}_{'_'.join(value.astype(str))}" for _, value in new_values.iterrows()]
 
                     z[g].index = new_samples
 
@@ -523,7 +530,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     z.rename_axis("new_sample", axis=0)
                     .reset_index()
                     .melt(
-                        id_vars=["new_sample", "new_value", "group"],
+                        id_vars=["new_sample", *new_values_names, "group"],
                         var_name="factor",
                         value_name=stat,
                     )
@@ -534,10 +541,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if df_long:
             z_interpolated = (
                 z_interpolated["mean"]
-                .set_index(["new_sample", "new_value", "group", "factor"])
+                .set_index(["new_sample", *new_values_names, "group", "factor"])
                 .merge(
                     z_interpolated["variance"],
-                    on=("new_sample", "new_value", "group", "factor"),
+                    on=("new_sample", *new_values_names, "group", "factor"),
                 )
             )
 
