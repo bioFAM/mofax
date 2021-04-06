@@ -36,7 +36,7 @@ def plot_factors_scatter(
     zero_line_y=False,
     linewidth=0,
     zero_linewidth=1,
-    size=5,
+    size=20,
     legend=True,
     legend_prop=None,
     palette=None,
@@ -162,7 +162,6 @@ def plot_factors_scatter(
             zero_line_y=zero_line_y,
             linewidth=linewidth,
             zero_linewidth=zero_linewidth,
-            size=size,
             legend=legend,
             legend_prop=legend_prop,
             palette=palette,
@@ -177,191 +176,6 @@ def plot_factors_scatter(
 
 plot_factors = plot_factors_scatter
 
-
-def plot_factors_interpolated(
-    model: mofa_model,
-    factors: Union[int, List[int]] = None,
-    groups=None,
-    only_mean: bool = False,
-    show_observed: bool = True,
-    color=None,
-    alpha=0.3,
-    zero_line=False,
-    linewidth=2,
-    dot_linewidth=0,
-    zero_linewidth=1,
-    size=5,
-    legend=True,
-    legend_prop=None,
-    palette=None,
-    ncols=4,
-    sharex=False,
-    sharey=False,
-    **kwargs,
-):
-    """
-    Plot samples features such as factor values,
-    samples metadata or covariates
-
-    Parameters
-    ----------
-    model : mofa_model
-        Factor model
-    factors : optional
-        Index of a factor (or indices of factors) to use (all factors by default)
-    groups : optional
-        Subset of groups to consider
-    only_mean : optional
-        If not to plot confidence for the interpolated values (False by default)
-    show_observed : optional
-        If not to plot oberved factor values along the transformed covariate (True by default)
-    group_label : optional
-        Sample (cell) metadata column to be used as group assignment ('group' by default)
-    color : optional
-        Grouping variable by default, alternatively a feature name can be provided (when no kde).
-        If a list of features is provided, they will be plot on one figure.
-        Use palette argument to provide a colour map.
-    alpha : optional
-        Opacity when plotting confidence for the interpolated values (when only_mean=False)
-    zero_line : optional
-        Boolean values if to add Z=0 line
-    linewidth : optional
-        Linewidth argument for lines (default is 2)
-    dot_linewidth : optional
-        Linewidth argument for dots (default is 0)
-    zero_linewidth : optional
-        Linewidth argument for the zero line (default is 1)
-    size : optional
-        Size argument for dots (ms for plot, s for jointplot and scatterplot; default is 5)
-    legend : optional bool
-        If to show the legend (e.g. colours matching groups)
-    legend_prop : optional
-        The font properties of the legend
-    palette : optional
-        cmap describing colours, default is None (cubehelix)
-        Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
-    ncols : optional
-        Number of columns if multiple colours are defined (4 by default)
-    sharex: optional
-        Common X axis across plots on the grid
-    sharey: optional
-        Common Y axis across plots on the grid
-    """
-
-    # Process input arguments
-    if color is None:
-        color = "group"
-    if color != "group":
-        raise ValueError(
-            "Only colouring by group is supported when plotting interpolated factors"
-        )
-
-    # Get factors
-    zi = model.get_interpolated_factors(
-        factors=factors, df_long=True
-    )  # this includes the group
-
-    # Subset groups
-    if groups is not None:
-        zi = zi[zi["group"].isin(_make_iterable(groups))]
-
-    # zi["factor_idx"] = zi.factor.str.lstrip("Factor").astype(int)
-    # zi = zi.sort_values(by=["factor_idx", "group", "new_value"])
-
-    zi_mean = (
-        zi.pivot(
-            index=["new_sample", "new_value", "group"], columns="factor", values="mean"
-        )
-        .reset_index()
-        .rename_axis(None, axis=1)
-        .sort_values(["new_value", "group"])
-    )
-    zi_var = (
-        zi.pivot(
-            index=["new_sample", "new_value", "group"],
-            columns="factor",
-            values="variance",
-        )
-        .reset_index()
-        .rename_axis(None, axis=1)
-        .sort_values(["new_value", "group"])
-    )
-
-    if show_observed:
-        covs = [f"{v}_transformed" for v in model.covariates_names]
-        if len(covs) > 1:
-            raise NotImplemented(
-                "Only data with a single covariate is currently supported"
-            )
-        z_observed = model.fetch_values([*factors, covs[0], "group"]).sort_values(
-            ["group"]
-        )
-
-    plot = partial(
-        sns.lineplot,
-    )
-
-    modifier = None
-    if (not only_mean) or show_observed:
-
-        def modifier(
-            data,
-            ax,
-            split_var,
-            color_var,
-            alpha=alpha,
-            show_observed=show_observed,
-            only_mean=only_mean,
-        ):
-            m, v = data["mean"], data["var"]
-            get_conf = lambda f, mean, var: f(mean, 1.96 * np.sqrt(var))
-            for group in m[color_var].unique():
-                m_g = m[m.group == group]
-                v_g = v[v.group == group]
-                g_mean, g_var = m_g[split_var].values, v_g[split_var].values
-                ax.fill_between(
-                    m_g.new_value,
-                    get_conf(np.subtract, g_mean, g_var),
-                    get_conf(np.add, g_mean, g_var),
-                    alpha=alpha,
-                )
-
-            # Add dots
-            if show_observed:
-                sns.scatterplot(
-                    data=data["observed"],
-                    x="time_transformed",
-                    y=split_var,
-                    hue=color_var,
-                    linewidth=dot_linewidth,
-                    ax=ax,
-                )
-
-        modifier = partial(
-            modifier, data={"mean": zi_mean, "var": zi_var, "observed": z_observed}
-        )
-
-    g = _plot_grid(
-        plot,
-        zi_mean,
-        x="new_value",
-        y=factors,
-        color=color,
-        zero_line_x=False,
-        zero_line_y=zero_line,
-        linewidth=linewidth,
-        zero_linewidth=zero_linewidth,
-        legend=legend,
-        legend_prop=legend_prop,
-        palette=palette,
-        ncols=ncols,
-        sharex=sharex,
-        sharey=sharey,
-        modifier=modifier,
-        **kwargs,
-    )
-
-    return g
 
 
 def _plot_factors(
@@ -488,7 +302,7 @@ def plot_factors_violin(
     groups=None,
     linewidth=0,
     zero_linewidth=1,
-    size=4,
+    size=20,
     legend=True,
     legend_prop=None,
     palette=None,
@@ -620,7 +434,7 @@ def plot_factors_umap(
     group_label: Optional[str] = None,
     color=None,
     linewidth=0,
-    size=5,
+    size=20,
     n_neighbors=10,
     spread=1,
     min_dist=0.5,
@@ -1003,7 +817,7 @@ def plot_factors_correlation(
         mask = np.triu(np.ones_like(corr, dtype=np.bool))
 
     # Set up the matplotlib figure
-    f, ax = plt.subplots(figsize=(11, 9))
+    f, ax = plt.subplots()
 
     if cmap is None:
         # Generate a custom diverging colormap
@@ -1089,7 +903,7 @@ def plot_projection(
     groups_df=None,
     color=None,
     linewidth=0,
-    size=5,
+    size=20,
     legend=False,
     legend_loc="best",
     legend_prop=None,

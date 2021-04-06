@@ -8,7 +8,7 @@ from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
 
-from .utils import _load_samples_metadata, _load_features_metadata, _load_covariates
+from .utils import _load_samples_metadata, _load_features_metadata, _load_covariates, _read_simple
 from .utils import *
 
 
@@ -115,6 +115,27 @@ class mofa_model:
         # Samples covariates
         self.covariates_names, self.covariates = _load_covariates(self)
 
+        # Training stats
+        self.training_stats = None
+        if "training_stats" in self.model:
+            self.training_stats = _read_simple(self.model["training_stats"])
+
+        # Options
+        self.options = dict()
+        # Training options
+        for tr_opts_key in ("training_opts", "training_options"):
+            if tr_opts_key in self.model:  # the latter supercedes
+                self.options["training"] = _read_simple(self.model[tr_opts_key])
+        # Model options
+        for mod_opts_key in ("model_opts", "model_options"):
+            if mod_opts_key in self.model:
+                self.options["model"] = _read_simple(self.model[mod_opts_key])
+        # MEFISTO options
+        for mod_opts_key in ("smooth_opts", "smooth_options", "mefisto_options"):
+            if mod_opts_key in self.model:
+                self.options["smooth"] = _read_simple(self.model[mod_opts_key])
+
+
     def __repr__(self):
         mofa_repr = f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
@@ -126,12 +147,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # MEFISTO
         mefisto_repr = ""
-        if self.interpolated_factors is not None:
-            mefisto_repr += f"\nInterpolated factors for {str(len(self.interpolated_factors['new_values']))} new values"
         if self.covariates is not None:
             mefisto_repr += (
                 f"\nCovariates available: {', '.join(self.covariates_names)}"
             )
+        if self.interpolated_factors is not None:
+            mefisto_repr += f"\nInterpolated factors for {str(len(self.interpolated_factors['new_values']))} new values"
 
         if mefisto_repr != "":
             mofa_repr += "\n\nMEFISTO:" + mefisto_repr
@@ -514,6 +535,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
                     z[g].index = new_samples
 
+                    # Create an index for new values
+                    z[g]["new_value"] = np.arange(z[g].shape[0])
+
             # concatenate views if requested
             if concatenate_groups:
                 z = pd.concat(z) if df or df_long else np.concatenate(z)
@@ -549,6 +573,21 @@ Expectations: {', '.join(self.expectations.keys())}"""
             )
 
         return z_interpolated
+
+    def get_group_kernel(self):
+        model_groups = False
+        if self.options and "smooth" in self.options and "model_groups" in self.options["smooth"]:
+            model_groups = bool(self.options['smooth']['model_groups'].item().decode())
+
+        kernels = list()
+        if not model_groups or self.ngroups == 1:
+            Kg = np.ones(shape=(self.nfactors, self.ngroups, self.ngroups))
+            return Kg
+        else:
+            if self.training_stats and "Kg" in self.training_stats:
+                return self.training_stats['Kg']
+            else:
+                raise ValueError("No group kernel was saved. Specify the covariates and train the MEFISTO model with the option 'model_groups' set to True.")
 
     def get_weights(
         self,

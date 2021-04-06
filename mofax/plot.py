@@ -24,3 +24,4 @@ sns.set_palette("Set2")
 from .plot_factors import *
 from .plot_weights import *
 from .plot_variance import *
+from .plot_mefisto import *
