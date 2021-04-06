@@ -294,3 +294,71 @@ def plot_group_kernel(
 
     return g
 
+
+def plot_sharedness(
+    model, groups=None, factors=None, color="#B8CF87", return_data=False, **kwargs
+):
+    GROUPS_MSG = "Multiple groups are required to determine sharedness"
+    assert model.ngroups > 1, GROUPS_MSG
+    if groups is not None:
+        assert not isinstance(groups, str) and len(groups) > 1, GROUPS_MSG
+
+    z = model.get_factors(factors=factors, groups=groups)
+    factor_indices, factors = model._check_factors(factors, unique=True)
+
+    groups = model._check_groups(groups)
+    all_groups = np.array(model.groups)
+    group_indices = [np.where(all_groups == gr)[0][0] for gr in groups]
+
+    # Get group kernels
+    Kgs = model.get_group_kernel()[factor_indices, :, :][:, group_indices, :][
+        :, :, group_indices
+    ]
+
+    # Calculate distance
+    gr = np.array(
+        [
+            np.abs(Kgs[i, :, :])[np.tril(Kgs[i, :, :], -1).astype(bool)].mean()
+            for i in range(Kgs.shape[0])
+        ]
+    )
+
+    df = pd.DataFrame({"factor": factors, "shared": gr, "non_shared": 1 - gr})
+
+    if return_data:
+        return df
+
+    sns.barplot(data=df, y="factor", x=1, color="lightgrey")
+    g = sns.barplot(data=df, color=color, y="factor", x="shared", **kwargs)
+
+    g.set(xlabel="Sharedness", ylabel="Factor")
+
+    sns.despine(offset=10, trim=True, ax=g)
+
+    plt.tight_layout()
+
+    return g
+
+
+def plot_smoothness(model, factors=None, color="#5F9EA0", return_data=False, **kwargs):
+    z = model.get_factors(factors=factors)
+    factor_indices, factors = model._check_factors(factors, unique=True)
+
+    # Get scales
+    scales = np.array(model.model["training_stats"]["scales"])
+
+    df = pd.DataFrame({"factor": factors, "smooth": scales, "non_smooth": 1 - scales})
+
+    if return_data:
+        return df
+
+    sns.barplot(data=df, y="factor", x=1, color="lightgrey")
+    g = sns.barplot(data=df, color=color, y="factor", x="smooth", **kwargs)
+
+    g.set(xlabel="Smoothness", ylabel="Factor")
+
+    sns.despine(offset=10, trim=True, ax=g)
+
+    plt.tight_layout()
+
+    return g
