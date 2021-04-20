@@ -1165,7 +1165,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         )
 
         for i in range(n_iter + 1):
-            # Canculate true group assignment for iteration 0
+            # Calculate true group assignment for iteration 0
             if i > 0:
                 groups_df.iloc[:, 0] = groups_df.iloc[:, 0].sample(frac=1).values
 
@@ -1259,6 +1259,45 @@ Expectations: {', '.join(self.expectations.keys())}"""
             )
         return r2
 
+    def get_sample_r2(
+        self,
+        factors: Optional[Union[str, int, List[str], List[int]]] = None,
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None,
+        df: bool = True,
+    ) -> pd.DataFrame:
+        findices, factors = self.__check_factors(factors, unique=True)
+        groups = self.__check_groups(groups)
+        views = self.__check_views(views)
+
+        r2s = []
+        for view in views:
+            for group in groups:
+                crossprod = self.expectations["Z"][group][findices,:].T.dot(
+                    self.expectations["W"][view][findices,:]
+                )
+                y = np.array(self.data[view][group])
+                a = np.nansum((y - crossprod) ** 2.0, axis=1)
+                b = np.nansum(y ** 2, axis=1)
+
+                r2_df_mg = pd.DataFrame({
+                    "Sample": self.samples[group],
+                    "Group": group,
+                    "View": view,
+                    "R2": (1.0 - a / b),
+                })
+
+                r2s.append(r2_df_mg)
+
+        r2_df = pd.concat(r2s, axis=0, ignore_index=True)
+
+        if df:
+            return r2_df
+        else:
+            r2_mx = np.array(r2_df.pivot(index="Sample", columns="View", values="R2"))
+            return r2_mx
+
+
     def project_data(
         self,
         data,
@@ -1320,3 +1359,52 @@ Expectations: {', '.join(self.expectations.keys())}"""
             if isinstance(data, pd.DataFrame):
                 zpred.index = data.index
         return zpred
+
+    def get_views_contributions(
+        self,
+        scaled: bool = True
+    ):
+        """
+        Project new data onto the factor space of the model.
+
+        For the projection, a pseudo-inverse of the weights matrix is calculated
+        and its product with the provided data matrix is calculated.
+
+        Parameters
+        ----------
+        scaled : bool, optional
+            Whether to scale contributions scores per sample
+            so that they sum up to 1 (True by default)
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with view contribution scores, samples in rows and views in columns
+        """
+        z = self.get_factors()
+        z = np.abs(z) / np.max(np.abs(z), axis=0)
+
+        factors_ordered = self.get_r2().Factor.drop_duplicates().values
+
+        contributions = []
+        r2 = self.get_r2()
+        for g in self.groups:
+            r2_g = r2[r2.apply(lambda x: x.Group == g, axis=1)]
+            z_g_indices = self.metadata.group.values == g
+            z_g = z[z_g_indices]
+            # R2 per factor
+            r2_per_factor = r2_g.pivot(index="Factor", columns="View", values="R2").loc[factors_ordered, self.views]
+            # R2 per view
+            r2_per_view = np.array(self.model['variance_explained']['r2_total'][g])
+            # Z x R2 per factor
+            view_contribution = np.dot(z_g, r2_per_factor) / r2_per_view
+            if scaled:
+                # Scale contributions to sum to 1
+                view_contribution = view_contribution / view_contribution.sum(axis=1)[:,None]
+            view_contribution = pd.DataFrame(view_contribution, index=self.metadata.index[z_g_indices], columns=r2_per_factor.columns)
+            contributions.append(view_contribution)
+
+        view_contribution = pd.concat(contributions, axis=0)
+
+        return view_contribution
+

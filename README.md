@@ -2,7 +2,7 @@
 
 Work with trained factor models in Python.
 
-This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python. For more information on the multi-omics factor analysis v2 framework please see [this GitHub repository](https://github.com/bioFAM/MOFA2).
+This library provides convenience functions to load and visualize factor models trained with MOFA+ in Python. For more information on the multi-omics factor analysis v2 framework please see [mofapy2](https://github.com/bioFAM/mofapy2) and [MOFA2](https://github.com/bioFAM/MOFA2) GitHub repositories as well as [the website](https://biofam.github.io/MOFA2/).
 
 ## Getting started
 
@@ -36,19 +36,20 @@ model.close()
 
 #### Model object
 
-Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings (weights) eliminating the need to traverse the HDF5 file manually.
+Model object is an instance of a `mofa_model` class that wraps around the HDF5 connection and provides a simple way to address the parts of the trained model such as expectations for factors and for their loadings (weights) eliminating the need to traverse the HDF5 file manually. The original connection to the HDF5 file is exposed via the `model.model` attribute.
 
 #### Model methods
 
-Simple data structures (e.g. lists or dictionaries) are typically returned upon calling the properties of the mofa model, e.g. `model.shape`:
+Simple data structures (e.g. lists or dictionaries) are typically returned upon accessing the properties of the mofa model, e.g. `model.shape`:
 
 ```python
 model.shape
 # returns (10138, 1124)
-#         cells^  ^features
+#       samples^  ^features
+#       (cells)
 ```
 
-More complex structures are typically returned when using methods such as `model.get_cells()` to get `cell -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model.
+More complex structures are typically returned when calling methods such as `model.get_samples()` to get `sample -> group` assignment as a pandas.DataFrame while also providing the way to only get this information for specific groups or views of the model. `model.get_cells()` works the same way.
 
 ```python
 model.get_cells().head()
@@ -86,6 +87,22 @@ model.get_factors(factors=range(3), df=True).head()
 # AATCCGTCACGAGACG-1 -0.046222  0.225920  0.010083
 # ACACCGAGGAGGTTGA-1  0.011766 -0.055964 -0.011298
 ```
+
+Variance explained by each factor per view and per group is calculated during the tranining and stored in the model file and can be accessed with `get_r2()`:
+
+```python
+model.get_r2().head()
+# 	Factor	View        Group	R2
+# 0	Factor1	drugs       group1	13.589131
+# 1	Factor1	methylation group1	17.330235
+# 2	Factor1	rna         group1	7.032133
+# 3	Factor1	mutations   group1	22.725224
+# 4	Factor2	drugs       group1	26.374409
+```
+
+#### MEFISTO models support
+
+[MEFISTO models](https://biofam.github.io/MOFA2/MEFISTO) can feature a few additional concepts such as _covariates_ and _interpolated factors_. Covariates can be accessed via `model.covariates_names` and `model.covariates`. If interpolated factors were learnt for new values during training, they are exposed at `model.interpolated_factors` and also can be obtained in a long DataFrame with `model.get_interpolated_factors(df_long=True)`.
 
 #### Utility functions
 
