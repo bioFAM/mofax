@@ -341,13 +341,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Fetch weights for the relevant factors
         w = (
-            pd.concat(
-                self.get_weights(
-                    views=views,
-                    factors=factors,
-                    df=True,
-                    absolute_values=absolute_values,
-                )
+            self.get_weights(
+                views=views,
+                factors=factors,
+                df=True,
+                absolute_values=absolute_values,
+                concatenate_views=True,
             )
             .rename_axis("feature")
             .reset_index()
@@ -500,7 +499,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         new_values_names = tuple()
         if self.covariates_names:
             new_values_names = tuple(
-                [f"new_{value}" for value in self.covariates_names]
+                [f"{value}_transformed" for value in self.covariates_names]
             )
         else:
             new_values_names = tuple(
@@ -613,7 +612,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Union[int, List[int]] = None,
         df: bool = False,
         scale: bool = False,
-        concatenate_views: bool = False,
+        concatenate_views: bool = True,
         absolute_values: bool = False,
     ):
         """
@@ -666,7 +665,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
     def get_data(
         self,
-        view: Union[str, int] = 0,
+        views: Optional[Union[str, int]] = None,
         features: Optional[Union[str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         df: bool = False,
@@ -688,10 +687,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Sanity checks
         groups = self._check_groups(groups)
-        view = self._check_views(view)[0]
+        views = self._check_views(views)
 
         # If features is None (default), return all by default
-        pd_features = self.get_features(view)
+        pd_features = self.get_features(views)
         if features is None:
             features = pd_features.feature.values
 
@@ -707,7 +706,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Create numpy array
         # y = [self.data[view][g][:, :] for g in groups]
-        y = np.concatenate([self.data[view][g][:, f_i] for g in groups], axis=0)
+        ym = []
+        for m in views:
+            ym.append(np.concatenate([self.data[m][g][:, f_i] for g in groups], axis=0))
+        y = np.concatenate(ym, axis=1)
 
         # Convert output to pandas data.frame
         if df:
@@ -828,7 +830,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if len(var_meta) > 0:
             var_list.append(self.metadata[var_meta])
         if len(var_features) > 0:
-            var_list.append(self.get_data(var_features, df=True))
+            var_list.append(self.get_data(features=var_features, df=True))
         if len(var_factors) > 0:
             var_list.append(self.get_factors(factors=var_factors, df=True))
         if len(var_covariates) > 0:
@@ -865,7 +867,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             elif all([isinstance(m, str) for m in views]):
                 assert set(views).issubset(
                     set(self.views)
-                ), f"some of the elements of the 'views' are not valid views. Group names of this model are {', '.join(self.views)}."
+                ), f"some of the elements of the 'views' are not valid views. Views names of this model are {', '.join(self.views)}."
             else:
                 raise ValueError(
                     "elements of the 'view' vector have to be either integers or strings"

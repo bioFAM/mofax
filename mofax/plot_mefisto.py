@@ -95,6 +95,8 @@ def plot_interpolated_factors(
             "Only colouring by group is supported when plotting interpolated factors"
         )
 
+    factors, factor_indices = model._check_factors(factors)
+
     # Get factors
     zi = model.get_interpolated_factors(
         factors=factors, df_long=True
@@ -102,7 +104,7 @@ def plot_interpolated_factors(
 
     new_values_dim = model.interpolated_factors["new_values"].shape[1]
     if new_values_dim == 1 and len(model.covariates_names) == 1:
-        new_value = f"new_{model.covariates_names[0]}"
+        new_value = f"{model.covariates_names[0]}_transformed"
     else:
         # If the new values are multi-dimensional, address them by index
         # since multi-dimensional plots are not supported
@@ -141,6 +143,9 @@ def plot_interpolated_factors(
         z_observed = model.fetch_values([*factors, covs[0], "group"]).sort_values(
             ["group"]
         )
+        # Subset groups
+        if groups is not None:
+            z_observed = z_observed[z_observed["group"].isin(_make_iterable(groups))]
 
     plot = partial(
         sns.lineplot,
@@ -164,8 +169,8 @@ def plot_interpolated_factors(
             if not only_mean:
                 get_conf = lambda f, mean, var: f(mean, 1.96 * np.sqrt(var))
                 for group in m[color_var].unique():
-                    m_g = m[m.group == group]
-                    v_g = v[v.group == group]
+                    m_g = m[m[color_var] == group]
+                    v_g = v[v[color_var] == group]
                     g_mean, g_var = m_g[split_var].values, v_g[split_var].values
                     ax.fill_between(
                         m_g[new_value],
@@ -178,7 +183,7 @@ def plot_interpolated_factors(
             if show_observed:
                 sns.scatterplot(
                     data=data["observed"],
-                    x="time_transformed",
+                    x=new_value,
                     y=split_var,
                     hue=color_var,
                     linewidth=dot_linewidth,

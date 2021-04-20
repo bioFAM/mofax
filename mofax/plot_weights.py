@@ -96,7 +96,7 @@ def plot_weights(
         df=True,
         scale=w_scaled,
         absolute_values=w_abs,
-    )[0]
+    )
     wm = (
         w.join(model.features_metadata.loc[:, ["view"]])
         .rename_axis("feature")
