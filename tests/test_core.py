@@ -33,7 +33,7 @@ class TestMofaModelMethods(unittest.TestCase):
         self.model.get_weights()
         self.model.get_weights(views=0, scale=True, df=True)
         self.model.get_data()
-        self.model.get_data(view=0, groups=0, df=True)
+        self.model.get_data(views=0, groups=0, df=True)
 
     # def test_dimred(self):
     #     self.model.run_umap()
