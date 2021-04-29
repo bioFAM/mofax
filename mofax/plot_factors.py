@@ -305,6 +305,7 @@ def plot_factors_violin(
     legend=True,
     legend_prop=None,
     palette=None,
+    alpha=None,
     violins_alpha=None,
     ncols=4,
     sharex=False,
@@ -312,7 +313,7 @@ def plot_factors_violin(
     **kwargs,
 ):
     """
-    Plot factor values as stripplots (jitter plots)
+    Plot factor values as violinplots or stripplots (jitter plots)
 
     Parameters
     ----------
@@ -349,6 +350,8 @@ def plot_factors_violin(
     palette : optional
         cmap describing colours, default is None (cubehelix)
         Example palette: seaborn.cubehelix_palette(8, start=.5, rot=-.75. as_cmap=True)
+    alpha : optional
+        Dots opacity
     violins_alpha : optional
         Violins opacity
     ncols : optional
@@ -385,18 +388,37 @@ def plot_factors_violin(
     z["factor_idx"] = z.factor.str.lstrip("Factor").astype(int)
     z = z.sort_values(by="factor_idx")
 
-    if violins:
-        plot = partial(
-            sns.violinplot,
-            inner=None,
-            s=size,
-        )
+    modifier = None
     if dots:
-        plot = partial(
-            sns.stripplot,
-            dodge=True,
-            s=size,
-        )
+        def modifier(
+            data,
+            ax,
+            split_var,
+            color_var,
+            alpha=alpha,
+        ):
+            # Add dots
+            sns.stripplot(
+                data=z,
+                dodge=True,
+                size=size,
+                x="factor",
+                y="value",
+                hue=color_var,
+                alpha=alpha,
+                linewidth=linewidth,
+                ax=ax,
+            )
+        modifier = partial(modifier, data=z)
+
+    
+
+    
+    plot = partial(
+        sns.violinplot,
+        inner=None,
+        s=size,
+    )
 
     g = _plot_grid(
         plot,
@@ -415,13 +437,25 @@ def plot_factors_violin(
         ncols=ncols,
         sharex=sharex,
         sharey=sharey,
+        modifier=modifier,
         **kwargs,
     )
 
+    # Adjust violins alpha
     if violins:
         if violins_alpha:
-            for violin in g.collections:
-                violin.set_alpha(violins_alpha)
+            for path in g.collections:
+                if path.__class__.__name__ == "PolyCollection":
+                    path.set_alpha(violins_alpha)
+    if violins is None or not violins or violins_alpha == 0:
+        n_plots = len(g.collections)
+        i = 0
+        while i < len(g.collections):
+            path = g.collections[i]
+            if path.__class__.__name__ == "PolyCollection":
+                path.remove()
+            else:
+                i += 1
 
     return g
 

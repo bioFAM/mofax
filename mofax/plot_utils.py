@@ -124,6 +124,12 @@ def _plot_grid_from_1d(
             ax=axes[ri, ci],
             **kwargs,
         )
+        # Otherwise sns.violinplot still plots the legend
+        if legend_str is False:
+            try:
+                g.get_legend().remove()
+            except AttributeError:
+                pass
 
         if modifier:
             modifier(split_var=split_var, color_var=color_var, ax=g)
