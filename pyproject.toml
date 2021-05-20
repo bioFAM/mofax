@@ -6,7 +6,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "mofax"
-version = "0.3.3"
+version = "0.3.5"
 description = "Work with MOFA+ models in Python"
 authors = ["Danila Bredikhin <danila.bredikhin@embl.de>"]
 
