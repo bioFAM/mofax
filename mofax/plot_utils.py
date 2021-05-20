@@ -9,7 +9,6 @@ import seaborn as sns
 from .utils import *
 from .utils import _make_iterable, _is_iter
 
-
 def _plot_grid(plot_func, data, x, y, color=None, **kwargs):
     MSG_ONLY_2D = "Only 2 of 3 dimensions can be iterables to create grids: x axis, y axis, or color."
 
@@ -113,79 +112,81 @@ def _plot_grid_from_1d(
 
         # data_ = data.sort_values(color) if color is not None and color != [None] else data
 
-        g = plot_func(
-            x=x if split_axis != "x" else split_var,
-            y=y if split_axis != "y" else split_var,
-            data=data,
-            hue=color_var,
-            linewidth=linewidth,
-            legend=legend_str,
-            palette=palette,
-            ax=axes[ri, ci],
-            **kwargs,
-        )
-        # Otherwise sns.violinplot still plots the legend
-        if legend_str is False:
-            try:
-                g.get_legend().remove()
-            except AttributeError:
-                pass
+        with sns.axes_style("ticks"), sns.color_palette(palette or "Set2"):
 
-        if modifier:
-            modifier(split_var=split_var, color_var=color_var, ax=g)
-
-        sns.despine(offset=10, trim=True, ax=g)
-
-        if split_axis == "x":
-            x_label = f"Factor{split_var+1}" if isinstance(x, int) else split_var
-        elif split_axis == "y":
-            y_label = f"Factor{split_var+1}" if isinstance(y, int) else split_var
-        g.set(
-            xlabel=f"{x_label}",
-            ylabel=f"{y_label}",
-            title=split_var,
-        )
-
-        if legend and color_var:
-            if is_numeric_dtype(data[color_var]):
-                means = data.groupby(color_var)[color_var].mean()
-                norm = plt.Normalize(means.min(), means.max())
-                cmap = (
-                    palette
-                    if palette is not None
-                    else sns.cubehelix_palette(as_cmap=True)
-                )
-                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                sm.set_array([])
+            g = plot_func(
+                x=x if split_axis != "x" else split_var,
+                y=y if split_axis != "y" else split_var,
+                data=data,
+                hue=color_var,
+                linewidth=linewidth,
+                legend=legend_str,
+                palette=palette,
+                ax=axes[ri, ci],
+                **kwargs,
+            )
+            # Otherwise sns.violinplot still plots the legend
+            if legend_str is False:
                 try:
-                    g.figure.colorbar(sm, ax=axes[ri, ci])
                     g.get_legend().remove()
-                except Exception:
-                    warn("Cannot make a proper colorbar")
-            else:
-                g.legend(
-                    bbox_to_anchor=(1.05, 1),
-                    loc=2,
-                    borderaxespad=0.0,
-                    prop=legend_prop,
+                except AttributeError:
+                    pass
+
+            if modifier:
+                modifier(split_var=split_var, color_var=color_var, ax=g)
+
+            sns.despine(offset=10, trim=True, ax=g)
+
+            if split_axis == "x":
+                x_label = f"Factor{split_var+1}" if isinstance(x, int) else split_var
+            elif split_axis == "y":
+                y_label = f"Factor{split_var+1}" if isinstance(y, int) else split_var
+            g.set(
+                xlabel=f"{x_label}",
+                ylabel=f"{y_label}",
+                title=split_var,
+            )
+
+            if legend and color_var:
+                if is_numeric_dtype(data[color_var]):
+                    means = data.groupby(color_var)[color_var].mean()
+                    norm = plt.Normalize(means.min(), means.max())
+                    cmap = (
+                        palette
+                        if palette is not None
+                        else sns.cubehelix_palette(as_cmap=True)
+                    )
+                    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                    sm.set_array([])
+                    try:
+                        g.figure.colorbar(sm, ax=axes[ri, ci])
+                        g.get_legend().remove()
+                    except Exception:
+                        warn("Cannot make a proper colorbar")
+                else:
+                    g.legend(
+                        bbox_to_anchor=(1.05, 1),
+                        loc=2,
+                        borderaxespad=0.0,
+                        prop=legend_prop,
+                    )
+
+            if zero_line_y:
+                axes[ri, ci].axhline(
+                    0, ls="--", color="lightgrey", linewidth=zero_linewidth, zorder=0
+                )
+            if zero_line_x:
+                axes[ri, ci].axvline(
+                    0, ls="--", color="lightgrey", linewidth=zero_linewidth, zorder=0
                 )
 
-        if zero_line_y:
-            axes[ri, ci].axhline(
-                0, ls="--", color="lightgrey", linewidth=zero_linewidth, zorder=0
-            )
-        if zero_line_x:
-            axes[ri, ci].axvline(
-                0, ls="--", color="lightgrey", linewidth=zero_linewidth, zorder=0
-            )
+        # Remove unused axes
+        for i in range(len(split_vars), ncols * nrows):
+            ri = i // ncols
+            ci = i % ncols
+            fig.delaxes(axes[ri, ci])
 
-    # Remove unused axes
-    for i in range(len(split_vars), ncols * nrows):
-        ri = i // ncols
-        ci = i % ncols
-        fig.delaxes(axes[ri, ci])
-
-    plt.tight_layout()
+        plt.tight_layout()
 
     return g
 

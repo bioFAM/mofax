@@ -17,9 +17,6 @@ import seaborn as sns
 from .utils import maybe_factor_indices_to_factors, _make_iterable, _is_iter
 from .plot_utils import _plot_grid
 
-sns.set_style("ticks")
-sns.set_palette("Set2")
-
 
 ### FACTORS ###
 
