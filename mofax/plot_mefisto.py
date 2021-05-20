@@ -333,7 +333,7 @@ def plot_sharedness(
     if return_data:
         return df
 
-    sns.barplot(data=df, y="factor", x=1, color="lightgrey")
+    sns.barplot(data=df, y="factor", x="shared", color="lightgrey")
     g = sns.barplot(data=df, color=color, y="factor", x="shared", **kwargs)
 
     g.set(xlabel="Sharedness", ylabel="Factor")
@@ -357,7 +357,7 @@ def plot_smoothness(model, factors=None, color="#5F9EA0", return_data=False, **k
     if return_data:
         return df
 
-    sns.barplot(data=df, y="factor", x=1, color="lightgrey")
+    sns.barplot(data=df, y="factor", x="smooth", color="lightgrey")
     g = sns.barplot(data=df, color=color, y="factor", x="smooth", **kwargs)
 
     g.set(xlabel="Smoothness", ylabel="Factor")
