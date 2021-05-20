@@ -8,6 +8,14 @@ from typing import Union, List, Optional
 from collections.abc import Iterable
 import warnings
 
+from .utils import (
+    _load_samples_metadata,
+    _load_features_metadata,
+    _load_covariates,
+    _read_simple,
+)
+from .utils import *
+
 
 class mofa_model:
     """Class around HDF5-based model on disk.
@@ -22,32 +30,39 @@ class mofa_model:
         self.filename = path.basename(filepath)
         self.model = h5py.File(filepath, mode)
 
-        self.data = self.model["data"] if "data" in self.model else None
-
+        # Define samples
         self.samples = {
             g: np.array(self.model["samples"][g]).astype("str")
             for g in self.model["samples"]
         }
+
+        # Define features
         self.features = {
             m: np.array(self.model["features"][m]).astype("str")
             for m in self.model["features"]
         }
 
+        # Define groups
         self.groups = (
             list(np.array(self.model["groups"]["groups"]).astype(str))
             if "groups" in self.model
             else list(self.model["samples"].keys())
         )
+
+        # Define views
         self.views = (
             list(np.array(self.model["views"]["views"]).astype(str))
             if "views" in self.model
             else list(self.model["features"].keys())
         )
 
+        # Define data and epxectations
+        self.data = self.model["data"] if "data" in self.model else None
         self.expectations = self.model["expectations"]
         self.factors = self.model["expectations"]["Z"]
         self.weights = self.model["expectations"]["W"]
 
+        # Define dimensionalities
         if self.data is not None:
             self.shape = (
                 sum(self.data[self.views[0]][group].shape[0] for group in self.groups),
@@ -58,10 +73,11 @@ class mofa_model:
                 sum(self.factors[group].shape[0] for group in self.groups),
                 sum(self.weights[view].shape[0] for view in self.views),
             )
-        self.nfactors = self.model["expectations"]["Z"][self.groups[0]].shape[0]
+        self.nfactors = self.factors[self.groups[0]].shape[0]
         self.nviews = len(self.views)
         self.ngroups = len(self.groups)
 
+        # Load model options
         if "model_options" in self.model:
             self.likelihoods = (
                 np.array(self.model["model_options"]["likelihoods"])
@@ -69,124 +85,83 @@ class mofa_model:
                 .tolist()
             )
 
+        # Load training options
         if "training_opts" in self.model:
             # TODO: Update according to the latest API
             self.training_opts = {"maxiter": self.model["training_opts"][0]}
 
-        self._samples_metadata = pd.DataFrame(
-            [
-                [cell, group]
-                for group, cell_list in self.samples.items()
-                for cell in cell_list
-            ],
-            columns=["sample", "group"],
-        )
-        if "samples_metadata" in self.model:
-            if len(list(self.model["samples_metadata"][self.groups[0]].keys())) > 0:
-                samples_metadata = pd.concat(
-                    [
-                        pd.concat(
-                            [
-                                pd.Series(self.model["samples_metadata"][g][k])
-                                for k in self.model["samples_metadata"][g].keys()
-                            ],
-                            axis=1,
-                        )
-                        for g in self.groups
-                    ],
-                    axis=0,
-                )
-                samples_metadata.columns = list(
-                    self.model["samples_metadata"][self.groups[0]].keys()
-                )
+        # Define samples metadata
+        self._samples_metadata = _load_samples_metadata(self)
 
-                if "group" in samples_metadata.columns:
-                    del samples_metadata["group"]
-                if "sample" in samples_metadata.columns:
-                    del samples_metadata["sample"]
+        # Define features metadata
+        self._features_metadata = _load_features_metadata(self)
 
-                self.samples_metadata = pd.concat(
-                    [
-                        self._samples_metadata.reset_index(drop=True),
-                        samples_metadata.reset_index(drop=True),
-                    ],
-                    axis=1,
-                )
+        ### MEFISTO ###
 
-                # Decode objects as UTF-8 strings
-                for column in self.samples_metadata.columns:
-                    if self.samples_metadata[column].dtype == "object":
-                        try:
-                            self.samples_metadata[column] = [
-                                i.decode() for i in self.samples_metadata[column].values
-                            ]
-                        except (UnicodeDecodeError, AttributeError):
-                            pass
+        # Interpolated Z
+        self.interpolated_factors = None
 
-        self._samples_metadata = self._samples_metadata.set_index("sample")
+        # Keep the structure similar to self.factors:
+        # e.g. self.interpolated_factors["mean"]["group1"]
+        # will refer to an HDF5 group with the dataset
+        # of shape (n_new_values, n_factors)
+        if "Z_predictions" in self.model:
+            self.interpolated_factors = dict()
+            for attr in "mean", "variance":
+                if attr in self.model["Z_predictions"][self.groups[0]]:
+                    self.interpolated_factors[attr] = {
+                        g: self.model["Z_predictions"][g][attr] for g in self.groups
+                    }
+            if "new_values" in self.model["Z_predictions"]:
+                self.interpolated_factors["new_values"] = self.model["Z_predictions"][
+                    "new_values"
+                ]
 
-        self.features_metadata = pd.DataFrame(
-            [
-                [feature, view]
-                for view, feature_list in self.features.items()
-                for feature in feature_list
-            ],
-            columns=["feature", "view"],
-        )
-        if "features_metadata" in self.model:
-            if len(list(self.model["features_metadata"][self.views[0]].keys())) > 0:
-                features_metadata_dict = {
-                    m: pd.concat(
-                        [
-                            pd.Series(self.model["features_metadata"][m][k])
-                            for k in self.model["features_metadata"][m].keys()
-                        ],
-                        axis=1,
-                    )
-                    for m in self.views
-                }
+        # Samples covariates
+        self.covariates_names, self.covariates = _load_covariates(self)
 
-                for m in features_metadata_dict.keys():
-                    features_metadata_dict[m].columns = list(
-                        self.model["features_metadata"][m].keys()
-                    )
+        # Training stats
+        self.training_stats = None
+        if "training_stats" in self.model:
+            self.training_stats = _read_simple(self.model["training_stats"])
 
-                features_metadata = pd.concat(features_metadata_dict, axis=0)
-
-                if "view" in features_metadata.columns:
-                    del features_metadata["view"]
-                if "feature" in features_metadata.columns:
-                    del features_metadata["feature"]
-
-                self.features_metadata = pd.concat(
-                    [
-                        self._features_metadata.reset_index(drop=True),
-                        features_metadata.reset_index(drop=True),
-                    ],
-                    axis=1,
-                )
-
-                # Decode objects as UTF-8 strings
-                for column in self.features_metadata.columns:
-                    if self.features_metadata[column].dtype == "object":
-                        try:
-                            self.features_metadata[column] = [
-                                i.decode()
-                                for i in self.features_metadata[column].values
-                            ]
-                        except (UnicodeDecodeError, AttributeError):
-                            pass
-
-        self.features_metadata = self.features_metadata.set_index("feature")
+        # Options
+        self.options = dict()
+        # Training options
+        for tr_opts_key in ("training_opts", "training_options"):
+            if tr_opts_key in self.model:  # the latter supercedes
+                self.options["training"] = _read_simple(self.model[tr_opts_key])
+        # Model options
+        for mod_opts_key in ("model_opts", "model_options"):
+            if mod_opts_key in self.model:
+                self.options["model"] = _read_simple(self.model[mod_opts_key])
+        # MEFISTO options
+        for mod_opts_key in ("smooth_opts", "smooth_options", "mefisto_options"):
+            if mod_opts_key in self.model:
+                self.options["smooth"] = _read_simple(self.model[mod_opts_key])
 
     def __repr__(self):
-        return f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
+        mofa_repr = f"""MOFA+ model: {" ".join(self.filename.replace(".hdf5", "").split("_"))}
 Samples (cells): {self.shape[0]}
 Features: {self.shape[1]}
 Groups: {', '.join([f"{k} ({len(v)})" for k, v in self.samples.items()])}
 Views: {', '.join([f"{k} ({len(v)})" for k, v in self.features.items()])}
 Factors: {self.nfactors}
 Expectations: {', '.join(self.expectations.keys())}"""
+
+        # MEFISTO
+        mefisto_repr = ""
+        if self.covariates is not None:
+            mefisto_repr += (
+                f"\nCovariates available: {', '.join(self.covariates_names)}"
+            )
+        if self.interpolated_factors is not None:
+            mefisto_repr += f"\nInterpolated factors for {str(len(self.interpolated_factors['new_values']))} new values"
+
+        if mefisto_repr != "":
+            mofa_repr += "\n\nMEFISTO:" + mefisto_repr
+
+        return mofa_repr
 
     # Alias samples as cells
     @property
@@ -249,8 +224,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         views : optional
             List of views to consider
         """
-        groups = self.__check_groups(groups)
-        views = self.__check_views(views)
+        groups = self._check_groups(groups)
+        views = self._check_views(views)
         shape = (
             sum(self.data[self.views[0]][group].shape[0] for group in groups),
             sum(self.data[view][self.groups[0]].shape[1] for view in views),
@@ -266,7 +241,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         groups : optional
             List of groups to consider
         """
-        groups = self.__check_groups(groups)
+        groups = self._check_groups(groups)
         return pd.DataFrame(
             [
                 [group, cell]
@@ -300,7 +275,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         views : optional
             List of views to consider
         """
-        views = self.__check_views(views)
+        views = self._check_views(views)
         return pd.DataFrame(
             [
                 [view, feature]
@@ -311,13 +286,25 @@ Expectations: {', '.join(self.expectations.keys())}"""
             columns=["view", "feature"],
         )
 
+    def get_groups(self):
+        """
+        Get the groups names
+        """
+        return self.groups
+
+    def get_views(self):
+        """
+        Get the views names
+        """
+        return self.views
+
     def get_top_features(
         self,
         factors: Union[int, List[int]] = None,
         views: Union[str, int, List[str], List[int]] = None,
         n_features: int = None,
         clip_threshold: float = None,
-        scaled_values: bool = False,
+        scale: bool = False,
         absolute_values: bool = False,
         only_positive: bool = False,
         only_negative: bool = False,
@@ -348,15 +335,18 @@ Expectations: {', '.join(self.expectations.keys())}"""
         df : optional
             Boolean value if to return a DataFrame
         """
-        views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors, unique=True)
+        views = self._check_views(views)
+        factor_indices, factors = self._check_factors(factors, unique=True)
         n_features_default = 10
 
         # Fetch weights for the relevant factors
         w = (
             self.get_weights(
-                views=views, factors=factors, df=True, 
-                scaled_values=scaled_values, absolute_values=absolute_values
+                views=views,
+                factors=factors,
+                df=True,
+                absolute_values=absolute_values,
+                concatenate_views=True,
             )
             .rename_axis("feature")
             .reset_index()
@@ -407,9 +397,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
     def get_factors(
         self,
         groups: Union[str, int, List[str], List[int]] = None,
-        factors: Union[int, List[int]] = None,
-        df=False,
-        scaled_values: bool = False,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
+        df: bool = False,
+        concatenate_groups: bool = True,
+        scale: bool = False,
         absolute_values: bool = False,
     ):
         """
@@ -422,37 +413,210 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors : optional
             Indices of factors to consider
         df : optional
-            Boolean value if to return Z matrix as a DataFrame
-        scaled_values : optional
-            If return values scaled to zero mean and unit variance (per sample or cell)
+            Boolean value if to return the factor matrix Z as a (wide) pd.DataFrame
+        concatenate_groups : optional
+            If concatenate Z matrices (True by default)
+        scale : optional
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per group otherwise)
         absolute_values : optional
-            If return absolute values for factors
+            If return absolute values for weights
         """
-        groups = self.__check_groups(groups)
-        findices, factors = self.__check_factors(factors)
-        z = np.concatenate(
-            tuple(np.array(self.factors[group]).T[:, findices] for group in groups)
-        )
-        if scaled_values:
-            z = (z - z.mean(axis=0)) / z.std(axis=0)
-        if absolute_values:
-            z = np.absolute(z)
-        if df:
-            z = pd.DataFrame(z)
-            z.columns = factors
-            z.index = np.concatenate(tuple(self.samples[g] for g in groups))
+
+        groups = self._check_groups(groups)
+        factor_indices, factors = self._check_factors(factors)
+
+        # get factors
+        z = list(np.array(self.factors[g]).T[:, factor_indices] for g in groups)
+
+        # consider transformations
+        for g in range(len(groups)):
+            if not concatenate_groups:
+                if scale:
+                    z[g] = (z[g] - z[g].mean(axis=0)) / z[g].std(axis=0)
+                if absolute_values:
+                    z[g] = np.absolute(z[g])
+            if df:
+                z[g] = pd.DataFrame(z[g])
+                z[g].columns = factors
+                z[g].index = self.samples[groups[g]]
+
+        # concatenate views if requested
+        if concatenate_groups:
+            z = pd.concat(z) if df else np.concatenate(z)
+            if scale:
+                z = (z - z.mean(axis=0)) / z.std(axis=0)
+            if absolute_values:
+                z = np.absolute(z)
+
         return z
+
+    def get_interpolated_factors(
+        self,
+        groups: Union[str, int, List[str], List[int]] = None,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
+        df: bool = False,
+        df_long: bool = False,
+        concatenate_groups: bool = True,
+        scale: bool = False,
+        absolute_values: bool = False,
+    ):
+        """
+        Get the matrix with interpolated factors.
+
+        If df_long is False, a dictionary with keys ("mean", "variance") is returned
+        with NumPy arrays (df=False) or DataFrames (df=True) as values.
+
+        If df_long is True, a DataFrame with columns ("new_value", "factor", "mean", "variance")
+        is returned.
+
+
+        Parameters
+        ----------
+        groups : optional
+            List of groups to consider
+        factors : optional
+            Indices of factors to consider
+        df : optional
+            Boolean value if to return mean and variance matrices as (wide) DataFrames
+            (can be superseded by df_long=True)
+        df_long : optional
+            Boolean value if to return a single long DataFrame
+            (supersedes df=False and concatenate_groups=False)
+        concatenate_groups : optional
+            If concatenate Z matrices (True by default, can be superseded by df_long=True)
+        scale : optional
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per group otherwise)
+        absolute_values : optional
+            If return absolute values for weights
+        """
+
+        groups = self._check_groups(groups)
+        factor_indices, factors = self._check_factors(factors)
+
+        z_interpolated = dict()
+        new_values_names = tuple()
+        if self.covariates_names:
+            new_values_names = tuple(
+                [f"{value}_transformed" for value in self.covariates_names]
+            )
+        else:
+            new_values_names = tuple(
+                [
+                    f"new_value{i}"
+                    for i in range(self.interpolated_factors["new_values"].shape[1])
+                ]
+            )
+
+        for stat in ["mean", "variance"]:
+            # get factors
+            z = list(
+                np.array(self.interpolated_factors[stat][g])[:, factor_indices]
+                for g in groups
+            )
+
+            # consider transformations
+            for g in range(len(groups)):
+                if not concatenate_groups:
+                    if scale:
+                        z[g] = (z[g] - z[g].mean(axis=0)) / z[g].std(axis=0)
+                    if absolute_values:
+                        z[g] = np.absolute(z[g])
+                if df or df_long:
+                    z[g] = pd.DataFrame(z[g])
+                    z[g].columns = factors
+                    z[g]["group"] = self.groups[g]
+
+                    if "new_values" in self.interpolated_factors:
+                        new_values = np.array(self.interpolated_factors["new_values"])
+                    else:
+                        new_values = np.arange(z[g].shape[0]).reshape(-1, 1)
+
+                    new_values = pd.DataFrame(new_values, columns=new_values_names)
+
+                    z[g] = pd.concat([z[g], new_values], axis=1)
+
+                    # If groups are to be concatenated (but not in a long DataFrame),
+                    # index has to be made unique per group
+                    new_samples = [
+                        f"{groups[g]}_{'_'.join(value.astype(str))}"
+                        for _, value in new_values.iterrows()
+                    ]
+
+                    z[g].index = new_samples
+
+                    # Create an index for new values
+                    z[g]["new_value"] = np.arange(z[g].shape[0])
+
+            # concatenate views if requested
+            if concatenate_groups:
+                z = pd.concat(z) if df or df_long else np.concatenate(z)
+                if scale:
+                    z = (z - z.mean(axis=0)) / z.std(axis=0)
+                if absolute_values:
+                    z = np.absolute(z)
+
+            # melt DataFrames
+            if df_long:
+                if not concatenate_groups:  # supersede
+                    z = pd.concat(z)
+                z = (
+                    z.rename_axis("new_sample", axis=0)
+                    .reset_index()
+                    .melt(
+                        id_vars=["new_sample", *new_values_names, "group"],
+                        var_name="factor",
+                        value_name=stat,
+                    )
+                )
+
+            z_interpolated[stat] = z
+
+        if df_long:
+            z_interpolated = (
+                z_interpolated["mean"]
+                .set_index(["new_sample", *new_values_names, "group", "factor"])
+                .merge(
+                    z_interpolated["variance"],
+                    on=("new_sample", *new_values_names, "group", "factor"),
+                )
+            )
+
+        return z_interpolated
+
+    def get_group_kernel(self):
+        model_groups = False
+        if (
+            self.options
+            and "smooth" in self.options
+            and "model_groups" in self.options["smooth"]
+        ):
+            model_groups = bool(self.options["smooth"]["model_groups"].item().decode())
+
+        kernels = list()
+        if not model_groups or self.ngroups == 1:
+            Kg = np.ones(shape=(self.nfactors, self.ngroups, self.ngroups))
+            return Kg
+        else:
+            if self.training_stats and "Kg" in self.training_stats:
+                return self.training_stats["Kg"]
+            else:
+                raise ValueError(
+                    "No group kernel was saved. Specify the covariates and train the MEFISTO model with the option 'model_groups' set to True."
+                )
 
     def get_weights(
         self,
         views: Union[str, int, List[str], List[int]] = None,
         factors: Union[int, List[int]] = None,
         df: bool = False,
-        scaled_values: bool = False,
+        scale: bool = False,
+        concatenate_views: bool = True,
         absolute_values: bool = False,
     ):
         """
-        Get the matrix with weights as a NumPy array or as a DataFrame (df=True).
+        Fetch the weight matrices
 
         Parameters
         ----------
@@ -461,83 +625,170 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors : optional
             Indices of factors to use
         df : optional
-            Boolean value if to return W matrix as a DataFrame
-        scaled_values : optional
-            If return values scaled to zero mean and unit variance (per gene)
+            Boolean value if to return W matrix as a (wide) pd.DataFrame
+        scale : optional
+            If return values scaled to zero mean and unit variance
+            (per factor when concatenated or per factor and per view otherwise)
+        concatenate_weights : optional
+            If concatenate W matrices (True by default)
         absolute_values : optional
             If return absolute values for weights
         """
-        views = self.__check_views(views)
-        findices, factors = self.__check_factors(factors, unique=True)
-        w = np.concatenate(
-            tuple(np.array(self.weights[view]).T[:, findices] for view in views)
-        )
-        if scaled_values:
-            w = (w - w.mean(axis=0)) / w.std(axis=0)
-        if absolute_values:
-            w = np.absolute(w)
-        if df:
-            w = pd.DataFrame(w)
-            w.columns = factors
-            w.index = np.concatenate(tuple(self.features[m] for m in views))
+
+        views = self._check_views(views)
+        factor_indices, factors = self._check_factors(factors, unique=True)
+
+        # get views
+        w = list(np.array(self.weights[m]).T[:, factor_indices] for m in views)
+
+        # consider transformations
+        for m in range(len(views)):
+            if not concatenate_views:
+                if scale:
+                    w[m] = (w[m] - w[m].mean(axis=0)) / w[m].std(axis=0)
+                if absolute_values:
+                    w[m] = np.absolute(w[m])
+            if df:
+                w[m] = pd.DataFrame(w[m])
+                w[m].columns = factors
+                w[m].index = self.features[views[m]]
+
+        # concatenate views if requested
+        if concatenate_views:
+            w = pd.concat(w) if df else np.concatenate(w)
+            if scale:
+                w = (w - w.mean(axis=0)) / w.std(axis=0)
+            if absolute_values:
+                w = np.absolute(w)
+
         return w
 
     def get_data(
         self,
-        features: Optional[Union[str, List[str]]],
+        views: Optional[Union[str, int]] = None,
+        features: Optional[Union[str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
-        df=False,
+        df: bool = False,
     ):
         """
-        Get the subset of the training data matrix as a NumPy array or as a DataFrame (df=True).
+        Fetch the training data
 
         Parameters
         ----------
-        groups : optional
-            List of groups to consider
+        view : optional
+            view to consider
         features : optional
             Features to consider (from one view)
+        groups : optional
+            groups to consider
         df : optional
             Boolean value if to return Y matrix as a DataFrame
         """
-        groups = self.__check_groups(groups)
+
+        # Sanity checks
+        groups = self._check_groups(groups)
+        views = self._check_views(views)
+
+        # If features is None (default), return all by default
+        pd_features = self.get_features(views)
+        if features is None:
+            features = pd_features.feature.values
+
         # If a sole feature name is used, wrap it in a list
         if not isinstance(features, Iterable) or isinstance(features, str):
             features = [features]
         else:
-            # Make feature names unique
-            features = list(set(features))
+            features = list(set(features))  # make feature names unique
 
-        # Deduce the view from the feature name
-        fs = self.get_features()
-        f_i = np.where(fs.feature.isin(features))[0]
+        f_i = np.where(pd_features.feature.isin(features))[0]
         assert len(f_i) > 0, "Requested features are not found"
-        f_view = fs.iloc[f_i, :].view.unique()
-        assert len(f_view) == 1, "All the features should be from one view"
-        f_view = f_view[0]
+        pd_features = pd_features.loc[f_i]
 
-        # Determine feature index in that view
-        fs = self.get_features(views=f_view)
-        f_i = np.where(fs.feature.isin(features))[0]
+        # Create numpy array
+        # y = [self.data[view][g][:, :] for g in groups]
+        ym = []
+        for m in views:
+            ym.append(np.concatenate([self.data[m][g][:, f_i] for g in groups], axis=0))
+        y = np.concatenate(ym, axis=1)
 
-        y = np.concatenate(
-            tuple(np.array(self.data[f_view][group])[:, f_i] for group in groups)
-        )
+        # Convert output to pandas data.frame
         if df:
             y = pd.DataFrame(y)
-            y.columns = fs.feature.values[f_i]
+            y.columns = pd_features.feature.values
             y.index = np.concatenate(tuple(self.samples[g] for g in groups))
+
         return y
 
-    def fetch_values(self, variables: Union[str, List[str]]):
+    def run_umap(
+        self,
+        groups: Union[str, int, List[str], List[int]] = None,
+        factors: Union[int, List[int]] = None,
+        n_neighbors: int = 10,
+        min_dist: float = 0.5,
+        spread: float = 1.0,
+        random_state: int = 42,
+        **kwargs,
+    ) -> None:
         """
-        Fetch metadata column, factors, or feature values.
-        Shorthand to get_data, get_factors, and metadata calls.
+        Run UMAP on the factor space
 
         Parameters
         ----------
-        features : str
-            Features, metadata columns, or factors (FactorN) to fetch
+        n_neighbors : optional
+            UMAP parameter: number of neighbors.
+        min_dist
+            UMAP parameter: the effective minimum distance between embedded points. Smaller values
+            will result in a more clustered/clumped embedding where nearby points on
+            the manifold are drawn closer together, while larger values will result
+            on a more even dispersal of points. The value should be set relative to
+            the ``spread`` value, which determines the scale at which embedded
+            points will be spread out.
+        spread
+            UMAP parameter: the effective scale of embedded points. In combination with `min_dist`
+            this determines how clustered/clumped the embedded points are.
+        random_state
+            random seed
+        """
+        import umap
+
+        # Get factors
+        data = self.get_factors(groups, factors)
+
+        embedding = umap.UMAP(
+            n_neighbors=n_neighbors,
+            min_dist=min_dist,
+            spread=spread,
+            random_state=random_state,
+            **kwargs,
+        ).fit_transform(data)
+
+        # create pandas dataframe
+        pd_umap = pd.DataFrame(embedding)
+        pd_umap.columns = ["UMAP" + str(i + 1) for i in range(embedding.shape[1])]
+        pd_umap.index = self.get_samples()["sample"]
+
+        # merge with samples metadata
+        self.samples_metadata = pd.merge(
+            left=self._samples_metadata,
+            right=pd_umap,
+            how="left",
+            left_on="sample",
+            right_on="sample",
+        )
+        print("UMAP coordinates added to the samples_metadata")
+
+    def fetch_values(self, variables: Union[str, List[str]], unique: bool = True):
+        """
+        Fetch metadata column, factors, or feature values
+        as well as covariates.
+        Shorthand to get_data, get_factors, metadata, and covariates calls.
+
+        Parameters
+        ----------
+        variables : str
+            Features, metadata columns, or factors (FactorN) to fetch.
+            For MEFISTO models with covariates, covariates are accepted
+            such as 'covariate1' or 'covariate1_transformed'.
         """
         # If a sole variable name is used, wrap it in a list
         if not isinstance(variables, Iterable) or isinstance(variables, str):
@@ -545,11 +796,15 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Remove None values and duplicates
         variables = [i for i in variables if i is not None]
-        variables = list(set(variables))
+        # Transform integers to factors
+        variables = maybe_factor_indices_to_factors(variables)
+        if unique:
+            variables = pd.Series(variables).drop_duplicates().tolist()
 
         var_meta = list()
         var_features = list()
         var_factors = list()
+        var_covariates = list()
 
         # Split all the variables into metadata and features
         for i, var in enumerate(variables):
@@ -559,6 +814,15 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 # Unify factor naming
                 variables[i] = var.capitalize()
                 var_factors.append(var.capitalize())
+            elif (
+                self.covariates_names is not None
+                and (
+                    var in self.covariates_names
+                    or var in [f"{cov}_transformed" for cov in self.covariates_names]
+                )
+                and self.covariates is not None
+            ):
+                var_covariates.append(var)
             else:
                 var_features.append(var)
 
@@ -566,48 +830,120 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if len(var_meta) > 0:
             var_list.append(self.metadata[var_meta])
         if len(var_features) > 0:
-            var_list.append(self.get_data(var_features, df=True))
+            var_list.append(self.get_data(features=var_features, df=True))
         if len(var_factors) > 0:
             var_list.append(self.get_factors(factors=var_factors, df=True))
+        if len(var_covariates) > 0:
+            var_list.append(self.covariates[var_covariates])
 
         # Return a DataFrame with columns ordered as requested
-        return pd.concat(var_list, axis=1)[variables]
+        return pd.concat(var_list, axis=1).loc[:, variables]
 
-    def __check_views(self, views):
-        return self.__check_grouping(views, "views")
+    def _check_views(self, views):
+        if views is None:
+            views = self.views
+        # single view provided as a string
+        elif isinstance(views, str):
+            views = [views]
 
-    def __check_groups(self, groups):
-        return self.__check_grouping(groups, "groups")
+        # single view provided as an integer
+        elif isinstance(views, int):
+            views = [self.views[views]]
 
-    def __check_grouping(self, groups, grouping_instance):
-        assert grouping_instance in ["groups", "views"]
-        # Use all groups if no specific groups are requested
+        # multiple views provided as an iterable
+        elif isinstance(views, Iterable) and not isinstance(views, str):
+
+            # (to-do) check that all elements are of the same type
+
+            # iterable of booleans
+            if all([isinstance(m, bool) for m in views]):
+                raise ValueError(
+                    f"Please provide view names as string or view indices as integers, boolean values are not accepted. Group names of this model are {', '.join(self.views)}."
+                )
+            # iterable of integers
+            elif all([isinstance(m, int) for m in views]):
+                views = [self.views[m] if isinstance(m, int) else m for m in views]
+            # iterable of strings
+            elif all([isinstance(m, str) for m in views]):
+                assert set(views).issubset(
+                    set(self.views)
+                ), f"some of the elements of the 'views' are not valid views. Views names of this model are {', '.join(self.views)}."
+            else:
+                raise ValueError(
+                    "elements of the 'view' vector have to be either integers or strings"
+                )
+        else:
+            raise ValueError("views argument not recognised")
+
+        return views
+
+    def _check_groups(self, groups):
         if groups is None:
-            if grouping_instance == "groups":
-                groups = self.groups
-            elif grouping_instance == "views":
-                groups = self.views
-        # If a sole group name is used, wrap it in a list
-        if not isinstance(groups, Iterable) or isinstance(groups, str):
+            groups = self.groups
+        # single group provided as a string
+        elif isinstance(groups, str):
             groups = [groups]
-        # Do not accept boolean values
-        if any([isinstance(g, bool) for g in groups]):
-            if grouping_instance == "groups":
+
+        # single group provided as an integer
+        elif isinstance(groups, int):
+            groups = [self.groups[groups]]
+
+        # multiple groups provided as an iterable
+        elif isinstance(groups, Iterable) and not isinstance(groups, str):
+
+            # (to-do) check that all elements are of the same type
+
+            # iterable of booleans
+            if all([isinstance(g, bool) for g in groups]):
                 raise ValueError(
-                    f"Please provide relevant group names. Boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
+                    f"Please provide group names as string or group indices as integers, boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
                 )
-            elif grouping_instance == "views":
+            # iterable of integers
+            elif all([isinstance(g, int) for g in groups]):
+                groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
+            # iterable of strings
+            elif all([isinstance(g, str) for g in groups]):
+                assert set(groups).issubset(
+                    set(self.groups)
+                ), f"some of the elements of the 'groups' are not valid groups. Group names of this model are {', '.join(self.groups)}."
+            else:
                 raise ValueError(
-                    f"Please provide relevant view names. Boolean values are not accepted. View names of this model are {', '.join(self.views)}."
+                    "elements of the 'group' vector have to be either integers or strings"
                 )
-        # Convert integers to group names
-        if grouping_instance == "groups":
-            groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
-        elif grouping_instance == "views":
-            groups = [self.views[g] if isinstance(g, int) else g for g in groups]
+        else:
+            raise ValueError("groups argument not recognised")
+
         return groups
 
-    def __check_factors(self, factors, unique=False):
+    # def _check_grouping(self, groups, grouping_instance):
+    #     assert grouping_instance in ["groups", "views"]
+    #     # Use all groups if no specific groups are requested
+    #     if groups is None:
+    #         if grouping_instance == "groups":
+    #             groups = self.groups
+    #         elif grouping_instance == "views":
+    #             groups = self.views
+    #     # If a sole group name is used, wrap it in a list
+    #     if not isinstance(groups, Iterable) or isinstance(groups, str):
+    #         groups = [groups]
+    #     # Do not accept boolean values
+    #     if any([isinstance(g, bool) for g in groups]):
+    #         if grouping_instance == "groups":
+    #             raise ValueError(
+    #                 f"Please provide relevant group names. Boolean values are not accepted. Group names of this model are {', '.join(self.groups)}."
+    #             )
+    #         elif grouping_instance == "views":
+    #             raise ValueError(
+    #                 f"Please provide relevant view names. Boolean values are not accepted. View names of this model are {', '.join(self.views)}."
+    #             )
+    #     # Convert integers to group names
+    #     if grouping_instance == "groups":
+    #         groups = [self.groups[g] if isinstance(g, int) else g for g in groups]
+    #     elif grouping_instance == "views":
+    #         groups = [self.views[g] if isinstance(g, int) else g for g in groups]
+    #     return groups
+
+    def _check_factors(self, factors, unique=False):
         # Use all factors by default
         if factors is None:
             factors = list(range(self.nfactors))
@@ -617,60 +953,63 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if unique:
             factors = list(set(factors))
         # Convert factor names (FactorN) to factor indices (N-1)
-        findices = [
+        factor_indices = [
             int(fi.replace("Factor", "")) - 1 if isinstance(fi, str) else fi
             for fi in factors
         ]
         factors = [f"Factor{fi+1}" if isinstance(fi, int) else fi for fi in factors]
 
-        return (findices, factors)
+        return (factor_indices, factors)
 
-    def get_factor_r2(
+    # Variance explained (R2)
+
+    def calculate_variance_explained(
         self,
-        factor_index: int,
+        # factor_index: int,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
         group_label: Optional[str] = None,
-        groups_df: Optional[pd.DataFrame] = None,
     ) -> pd.DataFrame:
-        if groups_df is not None and group_label is not None:
-            print("Please specify either group_label or groups_df but not both")
-            sys.exit(1)
+        """
+        Calculate the variance explained estimates for each factor in each view and/or group.
+        Allow also for predefined groups
 
-        groups = self.__check_groups(groups)
-        views = self.__check_views(views)
+        Parameters
+        ----------
+        factors : optional
+            List of factors to consider (default is None, all factors)
+        groups : optional
+            List of groups to consider (default is None, all groups)
+        views : optional
+            List of views to consider (default is None, all views)
+        """
+
+        groups = self._check_groups(groups)
+        views = self._check_views(views)
+        factor_indices, _ = self._check_factors(factors)
 
         r2_df = pd.DataFrame()
-        if groups_df is None and (group_label is None or group_label == "group"):
+
+        # use model groups
+        if group_label is None or group_label == "group":
             for view in views:
                 for group in groups:
-                    crossprod = np.array(
-                        self.expectations["Z"][group][[factor_index], :]
-                    ).T.dot(np.array(self.expectations["W"][view][[factor_index], :]))
-                    y = np.array(self.data[view][group])
-                    a = np.nansum((y - crossprod) ** 2.0)
-                    b = np.nansum(y ** 2)
+                    r2 = calculate_r2(
+                        Z=np.array(self.expectations["Z"][group][factor_indices, :]),
+                        W=np.array(self.expectations["W"][view][factor_indices, :]),
+                        Y=np.array(self.data[view][group]),
+                    )
                     r2_df = r2_df.append(
-                        {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": (1.0 - a / b) * 100,
-                        },
-                        ignore_index=True,
+                        {"View": view, "Group": group, "R2": r2}, ignore_index=True
                     )
 
-        # When calculating for a custom set of groups,
-        # Z matrix has to be merged and then split
-        # according to the new grouping of samples
+        # use custom groups
+        # note that when calculating for a custom set of groups,
+        # the Factor matrix (Z) has to be merged and then split according to the new grouping of samples
         else:
-            custom_groups = (
-                groups_df.iloc[:, 0].unique()
-                if group_label is None
-                else self.samples_metadata[group_label].unique()
-            )
-            if groups_df is None:
-                groups_df = self.samples_metadata.loc[:, [group_label]]
+            custom_groups = self.samples_metadata[group_label].unique()
+            samples_groups = self.samples_metadata[group_label]
 
             z = np.concatenate(
                 [self.expectations["Z"][group][:, :] for group in groups], axis=1
@@ -678,7 +1017,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
             z_custom = dict()
             for group in custom_groups:
-                z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
+                z_custom[group] = z[:, np.where(samples_groups == group)[0]]
             del z
 
             for view in views:
@@ -689,38 +1028,27 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
                 data_view = dict()
                 for group in custom_groups:
-                    data_view[group] = y_view[
-                        np.where(groups_df.iloc[:, 0] == group)[0], :
-                    ]
+                    data_view[group] = y_view[np.where(samples_groups == group)[0], :]
 
                 for group in custom_groups:
-                    crossprod = np.array(z_custom[group][[factor_index], :]).T.dot(
-                        np.array(self.expectations["W"][view][[factor_index], :])
+                    r2 = calculate_r2(
+                        Z=np.array(z_custom[group][factor_indices, :]),
+                        W=np.array(self.expectations["W"][view][factor_indices, :]),
+                        Y=np.array(data_view[group]),
                     )
-                    y = np.array(data_view[group])
-                    a = np.nansum((y - crossprod) ** 2)
-                    b = np.nansum(y ** 2)
                     r2_df = r2_df.append(
-                        {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": (1 - a / b) * 100,
-                        },
-                        ignore_index=True,
+                        {"View": view, "Group": group, "R2": r2}, ignore_index=True
                     )
         return r2_df
 
-    def get_r2(
+    def get_variance_explained(
         self,
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
-        groups_df: Optional[pd.DataFrame] = None,
-        group_label: Optional[str] = None,
     ) -> pd.DataFrame:
         """
-        Get variance explained (R2) per factor, view, and group.
+        Get variance explained estimates (R2) for each factor across  view(s) and/or group(s).
 
         factors : optional
             List of factors to consider (all by default)
@@ -728,17 +1056,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
             List of groups to consider (all by default)
         views : optional
             List of views to consider (all by default)
-        group_label : optional
-            Sample (cell) metadata column to be used as group assignment
-        groups_df : optional pd.DataFrame
-            Data frame with samples (cells) as index and first column as group assignment
         """
-        if (
-            "variance_explained" in self.model.keys()
-            and group_label is None
-            and groups_df is None
-        ):
-            # Load from file if pre-computed
+
+        # Load from file if pre-computed
+        if "variance_explained" in self.model.keys():
             r2 = pd.concat(
                 [
                     pd.DataFrame(
@@ -756,36 +1077,69 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     ].items()
                 ]
             )
+        # Recalculate if not pre-computed
+        else:
+
+            r2 = pd.DataFrame()
+            factor_indices, _ = self._check_factors(factors)
+            for k in factor_indices:
+                tmp = self.calculate_variance_explained(
+                    factors=k, groups=groups, views=views
+                )
+                tmp["Factor"] = "Factor" + str(k)
+                r2 = r2.append(tmp)
+
+            # Subset
             if factors is not None:
-                _, factors = self.__check_factors(factors)
+                _, factors = self._check_factors(factors)
                 r2 = r2[r2.Factor.isin(factors)]
             if groups is not None:
-                groups = self.__check_groups(groups)
+                groups = self._check_groups(groups)
                 r2 = r2[r2.Group.isin(groups)]
             if views is not None:
-                view = self.__check_views(views)
+                view = self._check_views(views)
                 r2 = r2[r2.View.isin(views)]
-        else:
-            if groups_df is not None and group_label is not None:
-                print("Please specify either group_label or groups_df but not both")
-                sys.exit(1)
-            r2 = pd.DataFrame()
-            findices, _ = self.__check_factors(factors)
-            for fi in findices:
-                r2 = r2.append(
-                    self.get_factor_r2(
-                        fi,
-                        groups=groups,
-                        views=views,
-                        group_label=group_label,
-                        groups_df=groups_df,
-                    )
-                )
         return r2
 
-    get_variance_explained = get_r2
+    def get_r2(
+        self,
+        factors: Optional[Union[int, List[int], str, List[str]]] = None,
+        groups: Optional[Union[str, int, List[str], List[int]]] = None,
+        views: Optional[Union[str, int, List[str], List[int]]] = None,
+        groups_df: Optional[pd.DataFrame] = None,
+        group_label: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Get variance explained (R2) per factor, view, and group.
+        factors : optional
+            List of factors to consider (all by default)
+        groups : optional
+            List of groups to consider (all by default)
+        views : optional
+            List of views to consider (all by default)
+        group_label : optional
+            Sample (cell) metadata column to be used as group assignment
+        groups_df : optional pd.DataFrame
+            Data frame with samples (cells) as index and first column as group assignment
+        """
+        warnings.warn(
+            "This method will be deprecated. Please use `.get_variance_explained`",
+            DeprecationWarning,
+        )
+        if groups_df is not None:
+            raise ValueError(
+                "Argument groups_df is not supported anymore. Please use `group_label` and sample metadata instead"
+            )
+        if group_label is None:
+            return self.get_variance_explained(
+                factors=factors, groups=groups, views=views
+            )
+        else:
+            return self.calculate_variance_explained(
+                factors=factors, groups=groups, views=views, group_label=group_label
+            )
 
-    def get_factor_r2_null(
+    def _get_factor_r2_null(
         self,
         factor_index: int,
         groups_df: Optional[pd.DataFrame],
@@ -879,7 +1233,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         else:
             return r2_pvalues.reset_index().sort_values("PValue", ascending=True)
 
-    def get_r2_null(
+    def _get_r2_null(
         self,
         factors: Union[int, List[int], str, List[str]] = None,
         n_iter: int = 100,
@@ -889,11 +1243,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
         return_pvalues=True,
         fdr=True,
     ) -> pd.DataFrame:
-        findices, factors = self.__check_factors(factors)
+        factor_indices, factors = self._check_factors(factors)
         r2 = pd.DataFrame()
-        for fi in findices:
+        for fi in factor_indices:
             r2 = r2.append(
-                self.get_factor_r2_null(
+                self._get_factor_r2_null(
                     fi,
                     groups_df=groups_df,
                     group_label=group_label,
@@ -969,11 +1323,12 @@ Expectations: {', '.join(self.expectations.keys())}"""
         """
         if view is None:
             view = 0
-        view = self.__check_views([view])[0]
-        findices, factors = self.__check_factors(factors)
+        view = self._check_views([view])[0]
+        factor_indices, factors = self._check_factors(factors)
 
         # Calculate the inverse of W
         winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
+        winv = np.concatenate(winv)
 
         # Find feature intersection to match the dimensions
         if feature_intersection:
@@ -1053,56 +1408,3 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         return view_contribution
 
-
-# Utility functions
-
-
-def umap(data, n_neighbors=10, spread=1, random_state=None, **kwargs):
-    """
-    Run UMAP on a provided matrix or data frame
-
-    Parameters
-    ----------
-    data
-        Numpy array or Pandas DataFrame with data to run UMAP on (samples in rows)
-    n_neighbors : optional
-        n_neighbors parameter for UMAP
-    spread : optional
-        spread parameter for UMAP
-    """
-    import umap
-
-    embedding = umap.UMAP(
-        n_neighbors=n_neighbors, spread=spread, random_state=random_state, **kwargs
-    ).fit_transform(data)
-
-    if isinstance(data, pd.DataFrame):
-        embedding = pd.DataFrame(embedding)
-        embedding.columns = ["UMAP1", "UMAP2"]
-        embedding.index = data.index
-
-    return embedding
-
-
-def padjust_fdr(xs):
-    """
-    Adjust p-values using the BH procedure
-    """
-    from scipy.stats import rankdata
-
-    ranked_p_values = rankdata(xs)
-    fdr = xs * len(xs) / ranked_p_values
-    fdr[fdr > 1] = 1
-    return fdr
-
-
-def padjust_fdr_2d(mx):
-    """
-    Adjust p-values in a matrix using the BH procedure
-    """
-    from scipy.stats import rankdata
-
-    ranked_p_values = rankdata(mx).reshape((-1, mx.shape[1]))
-    fdr = mx * mx.shape[0] * mx.shape[1] / ranked_p_values
-    fdr[fdr > 1] = 1
-    return fdr
