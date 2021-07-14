@@ -9,6 +9,7 @@ import seaborn as sns
 from .utils import *
 from .utils import _make_iterable, _is_iter
 
+
 def _plot_grid(plot_func, data, x, y, color=None, **kwargs):
     MSG_ONLY_2D = "Only 2 of 3 dimensions can be iterables to create grids: x axis, y axis, or color."
 

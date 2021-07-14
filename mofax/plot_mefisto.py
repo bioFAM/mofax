@@ -13,6 +13,7 @@ import seaborn as sns
 from .utils import _make_iterable
 from .plot_utils import _plot_grid
 
+
 def plot_interpolated_factors(
     model: mofa_model,
     factors: Union[int, List[int]] = None,

@@ -1077,6 +1077,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     ].items()
                 ]
             )
+            # Choose factors of interest
+            factor_indices, factors = self._check_factors(factors, unique=True)
+            r2 = r2[r2.Factor.isin(factors)]
         # Recalculate if not pre-computed
         else:
 
@@ -1273,19 +1276,21 @@ Expectations: {', '.join(self.expectations.keys())}"""
         r2s = []
         for view in views:
             for group in groups:
-                crossprod = self.expectations["Z"][group][findices,:].T.dot(
-                    self.expectations["W"][view][findices,:]
+                crossprod = self.expectations["Z"][group][findices, :].T.dot(
+                    self.expectations["W"][view][findices, :]
                 )
                 y = np.array(self.data[view][group])
                 a = np.nansum((y - crossprod) ** 2.0, axis=1)
                 b = np.nansum(y ** 2, axis=1)
 
-                r2_df_mg = pd.DataFrame({
-                    "Sample": self.samples[group],
-                    "Group": group,
-                    "View": view,
-                    "R2": (1.0 - a / b),
-                })
+                r2_df_mg = pd.DataFrame(
+                    {
+                        "Sample": self.samples[group],
+                        "Group": group,
+                        "View": view,
+                        "R2": (1.0 - a / b),
+                    }
+                )
 
                 r2s.append(r2_df_mg)
 
@@ -1296,7 +1301,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
         else:
             r2_mx = np.array(r2_df.pivot(index="Sample", columns="View", values="R2"))
             return r2_mx
-
 
     def project_data(
         self,
@@ -1360,10 +1364,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 zpred.index = data.index
         return zpred
 
-    def get_views_contributions(
-        self,
-        scaled: bool = True
-    ):
+    def get_views_contributions(self, scaled: bool = True):
         """
         Project new data onto the factor space of the model.
 
@@ -1393,18 +1394,25 @@ Expectations: {', '.join(self.expectations.keys())}"""
             z_g_indices = self.metadata.group.values == g
             z_g = z[z_g_indices]
             # R2 per factor
-            r2_per_factor = r2_g.pivot(index="Factor", columns="View", values="R2").loc[factors_ordered, self.views]
+            r2_per_factor = r2_g.pivot(index="Factor", columns="View", values="R2").loc[
+                factors_ordered, self.views
+            ]
             # R2 per view
-            r2_per_view = np.array(self.model['variance_explained']['r2_total'][g])
+            r2_per_view = np.array(self.model["variance_explained"]["r2_total"][g])
             # Z x R2 per factor
             view_contribution = np.dot(z_g, r2_per_factor) / r2_per_view
             if scaled:
                 # Scale contributions to sum to 1
-                view_contribution = view_contribution / view_contribution.sum(axis=1)[:,None]
-            view_contribution = pd.DataFrame(view_contribution, index=self.metadata.index[z_g_indices], columns=r2_per_factor.columns)
+                view_contribution = (
+                    view_contribution / view_contribution.sum(axis=1)[:, None]
+                )
+            view_contribution = pd.DataFrame(
+                view_contribution,
+                index=self.metadata.index[z_g_indices],
+                columns=r2_per_factor.columns,
+            )
             contributions.append(view_contribution)
 
         view_contribution = pd.concat(contributions, axis=0)
 
         return view_contribution
-
