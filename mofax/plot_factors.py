@@ -387,6 +387,7 @@ def plot_factors_violin(
 
     modifier = None
     if dots:
+
         def modifier(
             data,
             ax,
@@ -406,11 +407,9 @@ def plot_factors_violin(
                 linewidth=linewidth,
                 ax=ax,
             )
+
         modifier = partial(modifier, data=z)
 
-    
-
-    
     plot = partial(
         sns.violinplot,
         inner=None,
