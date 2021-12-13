@@ -234,7 +234,9 @@ def plot_r2_barplot(
     stacked : optional
         Plot a stacked barplot instead of a grouped barplot
     """
-    r2 = model.get_r2(factors=factors, groups_df=groups_df, group_label=group_label)
+    r2 = model.get_r2(
+        factors=factors, groups_df=groups_df, group_label=group_label, per_factor=True
+    )
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
