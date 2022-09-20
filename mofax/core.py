@@ -969,7 +969,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
-        group_label: Optional[str] = None,
+        groups_label: Optional[str] = None,
+        per_factor: Optional[bool] = None,
     ) -> pd.DataFrame:
         """
         Calculate the variance explained estimates for each factor in each view and/or group.
@@ -983,33 +984,64 @@ Expectations: {', '.join(self.expectations.keys())}"""
             List of groups to consider (default is None, all groups)
         views : optional
             List of views to consider (default is None, all views)
+        groups_label : optional
+            Group label to split samples by (default is None)
+        per_factor : optional
+            If calculate R2 per factor or for all factors (default)
         """
 
         groups = self._check_groups(groups)
         views = self._check_views(views)
-        factor_indices, _ = self._check_factors(factors)
+        factor_indices, factor_names = self._check_factors(factors)
+
+        if per_factor is None:
+            per_factor = False
 
         r2_df = pd.DataFrame()
 
         # use model groups
-        if group_label is None or group_label == "group":
+        if groups_label is None or groups_label == "group":
             for view in views:
                 for group in groups:
-                    r2 = calculate_r2(
-                        Z=np.array(self.expectations["Z"][group][factor_indices, :]),
-                        W=np.array(self.expectations["W"][view][factor_indices, :]),
-                        Y=np.array(self.data[view][group]),
-                    )
-                    r2_df = r2_df.append(
-                        {"View": view, "Group": group, "R2": r2}, ignore_index=True
-                    )
+                    if per_factor:
+                        for f_ind_name in zip(factor_indices, factor_names):
+                            factor_index, factor_name = f_ind_name
+                            r2 = calculate_r2(
+                                Z=np.array(
+                                    self.expectations["Z"][group][[factor_index], :]
+                                ),
+                                W=np.array(
+                                    self.expectations["W"][view][[factor_index], :]
+                                ),
+                                Y=np.array(self.data[view][group]),
+                            )
+                            r2_df = r2_df.append(
+                                {
+                                    "View": view,
+                                    "Group": group,
+                                    "R2": r2,
+                                    "Factor": factor_name,
+                                },
+                                ignore_index=True,
+                            )
+                    else:
+                        r2 = calculate_r2(
+                            Z=np.array(
+                                self.expectations["Z"][group][factor_indices, :]
+                            ),
+                            W=np.array(self.expectations["W"][view][factor_indices, :]),
+                            Y=np.array(self.data[view][group]),
+                        )
+                        r2_df = r2_df.append(
+                            {"View": view, "Group": group, "R2": r2}, ignore_index=True
+                        )
 
         # use custom groups
         # note that when calculating for a custom set of groups,
         # the Factor matrix (Z) has to be merged and then split according to the new grouping of samples
         else:
-            custom_groups = self.samples_metadata[group_label].unique()
-            samples_groups = self.samples_metadata[group_label]
+            custom_groups = self.samples_metadata[groups_label].unique()
+            samples_groups = self.samples_metadata[groups_label]
 
             z = np.concatenate(
                 [self.expectations["Z"][group][:, :] for group in groups], axis=1
@@ -1031,14 +1063,45 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     data_view[group] = y_view[np.where(samples_groups == group)[0], :]
 
                 for group in custom_groups:
-                    r2 = calculate_r2(
-                        Z=np.array(z_custom[group][factor_indices, :]),
-                        W=np.array(self.expectations["W"][view][factor_indices, :]),
-                        Y=np.array(data_view[group]),
-                    )
-                    r2_df = r2_df.append(
-                        {"View": view, "Group": group, "R2": r2}, ignore_index=True
-                    )
+                    if per_factor:
+                        for f_ind_name in zip(factor_indices, factor_names):
+                            factor_index, factor_name = f_ind_name
+                            r2 = calculate_r2(
+                                Z=np.array(z_custom[group][[factor_index], :]),
+                                W=np.array(
+                                    self.expectations["W"][view][[factor_index], :]
+                                ),
+                                Y=np.array(data_view[group]),
+                            )
+                            r2_df = pd.concat(
+                                [
+                                    r2_df,
+                                    pd.DataFrame(
+                                        {
+                                            "View": view,
+                                            "Group": group,
+                                            "R2": r2,
+                                            "Factor": factor_name,
+                                        },
+                                        index=[0],
+                                    ),
+                                ],
+                                ignore_index=True,
+                            )
+                    else:
+                        r2 = calculate_r2(
+                            Z=np.array(z_custom[group][factor_indices, :]),
+                            W=np.array(self.expectations["W"][view][factor_indices, :]),
+                            Y=np.array(data_view[group]),
+                        )
+                        r2_df = pd.concat(
+                            [
+                                pd.DataFrame(
+                                    {"View": view, "Group": group, "R2": r2}, index=[0]
+                                )
+                            ],
+                            ignore_index=True,
+                        )
         return r2_df
 
     def get_variance_explained(
@@ -1109,8 +1172,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factors: Optional[Union[int, List[int], str, List[str]]] = None,
         groups: Optional[Union[str, int, List[str], List[int]]] = None,
         views: Optional[Union[str, int, List[str], List[int]]] = None,
-        groups_df: Optional[pd.DataFrame] = None,
-        group_label: Optional[str] = None,
+        groups_label: Optional[str] = None,
+        per_factor: Optional[bool] = None,
     ) -> pd.DataFrame:
         """
         Get variance explained (R2) per factor, view, and group.
@@ -1120,33 +1183,34 @@ Expectations: {', '.join(self.expectations.keys())}"""
             List of groups to consider (all by default)
         views : optional
             List of views to consider (all by default)
-        group_label : optional
+        groups_label : optional
             Sample (cell) metadata column to be used as group assignment
-        groups_df : optional pd.DataFrame
-            Data frame with samples (cells) as index and first column as group assignment
+        per_factor : optional
+            If compute R2 per factor if it is calculated
         """
         warnings.warn(
             "This method will be deprecated. Please use `.get_variance_explained`",
             DeprecationWarning,
         )
-        if groups_df is not None:
-            raise ValueError(
-                "Argument groups_df is not supported anymore. Please use `group_label` and sample metadata instead"
-            )
-        if group_label is None:
+        if groups_label is None:
             return self.get_variance_explained(
-                factors=factors, groups=groups, views=views
+                factors=factors,
+                groups=groups,
+                views=views,
             )
         else:
             return self.calculate_variance_explained(
-                factors=factors, groups=groups, views=views, group_label=group_label
+                factors=factors,
+                groups=groups,
+                views=views,
+                groups_label=groups_label,
+                per_factor=per_factor,
             )
 
     def _get_factor_r2_null(
         self,
         factor_index: int,
-        groups_df: Optional[pd.DataFrame],
-        group_label: Optional[str],
+        groups_label: Optional[str],
         n_iter=100,
         return_full=False,
         return_true=False,
@@ -1155,11 +1219,10 @@ Expectations: {', '.join(self.expectations.keys())}"""
     ) -> pd.DataFrame:
         r2_df = pd.DataFrame()
 
-        if groups_df is None and group_label is None:
-            group_label = "group"
+        if groups_label is None:
+            groups_label = "group"
 
-        if groups_df is None:
-            groups_df = self.samples_metadata.loc[:, [group_label]]
+        groups_df = self.samples_metadata.loc[:, [groups_label]]
 
         custom_groups = groups_df.iloc[:, 0].unique()
 
@@ -1194,7 +1257,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     )
                     y = np.array(data_view[group])
                     a = np.sum((y - crossprod) ** 2)
-                    b = np.sum(y ** 2)
+                    b = np.sum(y**2)
                     r2_df = r2_df.append(
                         {
                             "View": view,
@@ -1240,8 +1303,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         self,
         factors: Union[int, List[int], str, List[str]] = None,
         n_iter: int = 100,
-        groups_df: Optional[pd.DataFrame] = None,
-        group_label: Optional[str] = None,
+        groups_label: Optional[str] = None,
         return_full=False,
         return_pvalues=True,
         fdr=True,
@@ -1252,8 +1314,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
             r2 = r2.append(
                 self._get_factor_r2_null(
                     fi,
-                    groups_df=groups_df,
-                    group_label=group_label,
+                    groups_label=groups_label,
                     n_iter=n_iter,
                     return_full=return_full,
                     return_pvalues=return_pvalues,
@@ -1281,7 +1342,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 )
                 y = np.array(self.data[view][group])
                 a = np.nansum((y - crossprod) ** 2.0, axis=1)
-                b = np.nansum(y ** 2, axis=1)
+                b = np.nansum(y**2, axis=1)
 
                 r2_df_mg = pd.DataFrame(
                     {

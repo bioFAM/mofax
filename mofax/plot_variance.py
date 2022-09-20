@@ -26,8 +26,7 @@ def plot_r2(
     x="Group",
     y="Factor",
     factors: Union[int, List[int], str, List[str]] = None,
-    groups_df: pd.DataFrame = None,
-    group_label: str = None,
+    groups_label: str = None,
     views=None,
     groups=None,
     cmap="Blues",
@@ -52,10 +51,8 @@ def plot_r2(
         Make a plot for certain views (None by default to plot all views)
     groups : optional
         Make a plot for certain groups (None by default to plot all groups)
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
     cmap : optional
         The colourmap for the heatmap (default is 'Blues' with darker colour for higher R2)
     vmin : optional
@@ -67,8 +64,8 @@ def plot_r2(
         factors=factors,
         groups=groups,
         views=views,
-        group_label=group_label,
-        groups_df=groups_df,
+        groups_label=groups_label,
+        per_factor=True,
     )
 
     vmax = r2.R2.max() if vmax is None else vmax
@@ -134,8 +131,7 @@ def plot_r2_pvalues(
     model: mofa_model,
     factors: Union[int, List[int], str, List[str]] = None,
     n_iter: int = 100,
-    groups_df: pd.DataFrame = None,
-    group_label: str = None,
+    groups_label: str = None,
     view=0,
     fdr: bool = True,
     cmap="binary_r",
@@ -152,9 +148,7 @@ def plot_r2_pvalues(
         Index of a factor (or indices of factors) to use (all factors by default)
     view : optional
         Make a plot for a cetrain view (first view by default)
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
     fdr : optional bool
         If plot corrected PValues (FDR)
@@ -163,8 +157,7 @@ def plot_r2_pvalues(
     """
     r2 = model.get_r2_null(
         factors=factors,
-        groups_df=groups_df,
-        group_label=group_label,
+        groups_label=groups_label,
         n_iter=n_iter,
         return_pvalues=True,
         fdr=fdr,
@@ -196,8 +189,7 @@ def plot_r2_barplot(
     model: mofa_model,
     factors: Union[int, List[int], str, List[str]] = None,
     view=0,
-    groups_df: pd.DataFrame = None,
-    group_label: str = None,
+    groups_label: str = None,
     x="Factor",
     y="R2",
     groupby="Group",
@@ -217,9 +209,7 @@ def plot_r2_barplot(
         Index of a factor (or indices of factors) to use (all factors by default)
     view : optional
         Make a plot for a cetrain view (first view by default)
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
     x : optional
         Value to plot along the x axis (default is Factor)
@@ -234,7 +224,9 @@ def plot_r2_barplot(
     stacked : optional
         Plot a stacked barplot instead of a grouped barplot
     """
-    r2 = model.get_r2(factors=factors, groups_df=groups_df, group_label=group_label)
+    r2 = model.get_r2(
+        factors=factors, groups_label=groups_label, per_factor=True
+    )
     # Select a certain view if necessary
     if view is not None:
         view = model.views[view] if isinstance(view, int) else view
