@@ -3,3 +3,4 @@ sphinx-copybutton
 sphinx-design
 sphinx-inline-tabs
 sphinx-tabs
+furo
