@@ -1258,16 +1258,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     y = np.array(data_view[group])
                     a = np.sum((y - crossprod) ** 2)
                     b = np.sum(y**2)
-                    r2_df = r2_df.append(
-                        {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": 1 - a / b,
-                            "Iteration": i,
-                        },
-                        ignore_index=True,
-                    )
+                    row = pd.DataFrame([{
+                        "View": view,
+                        "Group": group,
+                        "Factor": f"Factor{factor_index+1}",
+                        "R2": 1 - a / b,
+                        "Iteration": i,
+                    }])
+                    r2_df = pd.concat([r2_df, row], ignore_index=True)
 
         if return_full:
             if return_true:
@@ -1311,7 +1309,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factor_indices, factors = self._check_factors(factors)
         r2 = pd.DataFrame()
         for fi in factor_indices:
-            r2 = r2.append(
+            r2 = pd.concat([r2, 
                 self._get_factor_r2_null(
                     fi,
                     groups_label=groups_label,
@@ -1320,7 +1318,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     return_pvalues=return_pvalues,
                     fdr=fdr,
                 )
-            )
+            ])
         return r2
 
     def get_sample_r2(

@@ -27,7 +27,7 @@ def plot_factors_scatter(
     y="Factor2",
     dist=False,
     groups=None,
-    group_label="group",
+    groups_label="group",
     color=None,
     zero_line_x=False,
     zero_line_y=False,
@@ -60,7 +60,7 @@ def plot_factors_scatter(
         Boolean value if to add marginal distributions or histograms to the scatterplot (jointplot)
     groups : optional
         Subset of groups to consider
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment ('group' by default)
     color : optional
         Grouping variable by default, alternatively a feature name can be provided (when no kde).
@@ -90,7 +90,7 @@ def plot_factors_scatter(
     """
 
     # Process input arguments
-    if group_label == "group" and color is None:
+    if groups_label == "group" and color is None:
         color = "group"
     color_vars = maybe_factor_indices_to_factors(_make_iterable(color))
 
@@ -107,7 +107,7 @@ def plot_factors_scatter(
         z = model.fetch_values([x, y], unique=True)
 
         # Add group and colour information
-        vars = [group_label, *color_vars]
+        vars = [groups_label, *color_vars]
         vars = [v for v in vars if v not in z.columns]
         if any([not (not (i)) for i in vars]):
             meta = model.fetch_values(variables=vars)
@@ -115,8 +115,8 @@ def plot_factors_scatter(
             z = z.set_index("sample").join(meta).reset_index()
 
         # Subset groups (incl. custom groups of samples)
-        if group_label and groups is not None:
-            z = z[z[group_label].isin(groups)]
+        if groups_label and groups is not None:
+            z = z[z[groups_label].isin(groups)]
 
         g = sns.jointplot(
             x=x,
@@ -154,7 +154,7 @@ def plot_factors_scatter(
             y,
             color,
             groups=groups,
-            group_label=group_label,
+            groups_label=group_label,
             zero_line_x=zero_line_x,
             zero_line_y=zero_line_y,
             linewidth=linewidth,
@@ -181,7 +181,7 @@ def _plot_factors(
     y="Factor2",
     color=None,
     groups=None,
-    group_label="group",
+    groups_label="group",
     zero_line_x=False,
     zero_line_y=False,
     linewidth=0,
@@ -212,7 +212,7 @@ def _plot_factors(
         Boolean value if to add marginal distributions or histograms to the scatterplot (jointplot)
     groups : optional
         Subset of groups to consider
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment ('group' by default)
     color : optional
         Grouping variable by default, alternatively a feature name can be provided (when no kde).
@@ -242,7 +242,7 @@ def _plot_factors(
     """
 
     # Process input arguments
-    if group_label == "group" and color is None:
+    if groups_label == "group" and color is None:
         color = "group"
     color_vars = maybe_factor_indices_to_factors(_make_iterable(color))
 
@@ -254,7 +254,7 @@ def _plot_factors(
     z = model.fetch_values([*x_vars, *y_vars], unique=True)
 
     # Add group and colour information
-    vars = [group_label, *color_vars]
+    vars = [groups_label, *color_vars]
     vars = [v for v in vars if v not in z.columns]
     if any([not (not (i)) for i in vars]):
         meta = model.fetch_values(variables=vars)
@@ -262,8 +262,8 @@ def _plot_factors(
         z = z.set_index("sample").join(meta).reset_index()
 
     # Subset groups (incl. custom groups of samples)
-    if group_label and groups is not None:
-        z = z[z[group_label].isin(groups)]
+    if groups_label and groups is not None:
+        z = z[z[groups_label].isin(groups)]
 
     g = _plot_grid(
         plot_func,
@@ -294,7 +294,7 @@ def plot_factors_violin(
     violins=True,
     dots=False,
     zero_line=True,
-    group_label="group",
+    groups_label="group",
     groups=None,
     linewidth=0,
     zero_linewidth=1,
@@ -326,7 +326,7 @@ def plot_factors_violin(
         Variable to split & colour dots by (cell group by default)
     groups : optional
         Subset of groups to consider
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment ('group' by default)
     violins : optional
         Boolean value if to add violin plots
@@ -360,7 +360,7 @@ def plot_factors_violin(
     """
 
     # Process input arguments
-    if group_label == "group" and color is None:
+    if groups_label == "group" and color is None:
         color = "group"
     color_vars = maybe_factor_indices_to_factors(_make_iterable(color))
 
@@ -373,14 +373,14 @@ def plot_factors_violin(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Add group and colour information
-    vars = [group_label, *color_vars]
+    vars = [groups_label, *color_vars]
     if any([not (not (i)) for i in vars]):
         meta = model.fetch_values(variables=vars)
         z = z.set_index("sample").join(meta).reset_index()
 
     # Subset groups (incl. custom groups of samples)
-    if group_label and groups is not None:
-        z = z[z[group_label].isin(groups)]
+    if groups_label and groups is not None:
+        z = z[z[groups_label].isin(groups)]
 
     z["factor_idx"] = z.factor.str.lstrip("Factor").astype(int)
     z = z.sort_values(by="factor_idx")
@@ -460,7 +460,7 @@ def plot_factors_umap(
     model: mofa_model,
     factors: Optional[Union[int, List[int]]] = None,
     groups=None,
-    group_label: Optional[str] = None,
+    groups_label: Optional[str] = None,
     color=None,
     linewidth=0,
     size=20,
@@ -488,7 +488,7 @@ def plot_factors_umap(
         Index of a factor (or indices of factors) to use (all factors by default)
     groups : optional
         Subset of groups to consider
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
     color : optional
         Grouping variable by default, alternatively a feature name can be provided
@@ -516,7 +516,7 @@ def plot_factors_umap(
     """
 
     # Process input arguments
-    if group_label == "group" and not color:
+    if groups_label == "group" and not color:
         color = "group"
     color_vars = maybe_factor_indices_to_factors(_make_iterable(color))
 
@@ -541,7 +541,7 @@ def plot_factors_umap(
     x, y, *_ = embedding.columns
 
     # Add group and colour information
-    vars = [group_label, *color_vars]
+    vars = [groups_label, *color_vars]
     vars = [v for v in vars if v not in embedding.columns.values]
     if any([not (not (i)) for i in vars]):
         meta = model.fetch_values(variables=vars)
@@ -549,8 +549,8 @@ def plot_factors_umap(
         embedding = embedding.set_index("sample").join(meta).reset_index()
 
     # Subset groups (incl. custom groups of samples)
-    if group_label and groups is not None:
-        embedding = embedding[embedding[group_label].isin(groups)]
+    if groups_label and groups is not None:
+        embedding = embedding[embedding[groups_label].isin(groups)]
 
     plot = partial(
         sns.scatterplot,
@@ -585,7 +585,7 @@ def plot_factors_umap(
 def plot_factors_matrix(
     model: mofa_model,
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
-    group_label: Optional[str] = None,
+    groups_label: Optional[str] = None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
     agg="mean",
     cmap="viridis",
@@ -602,7 +602,7 @@ def plot_factors_matrix(
         Factor model
     factors : optional
         Factor idices or names (all factors by default)
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
     groups : optional
         Group indices or names (all groups by default)
@@ -618,9 +618,9 @@ def plot_factors_matrix(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every sample (cell) if it is provided
-    if group_label is None:
-        group_label = "group"
-    groups_df = model.samples_metadata.loc[:, [group_label]]
+    if groups_label is None:
+        groups_label = "group"
+    groups_df = model.samples_metadata.loc[:, [groups_label]]
 
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
@@ -650,7 +650,7 @@ def plot_factors_matrix(
 def plot_factors_dotplot(
     model: mofa_model,
     factors: Optional[Union[int, List[int], str, List[str]]] = None,
-    group_label: Optional[str] = None,
+    groups_label: Optional[str] = None,
     groups: Optional[Union[int, List[int], str, List[str]]] = None,
     palette=None,
     vmin=None,
@@ -671,7 +671,7 @@ def plot_factors_dotplot(
         Factor model
     factors : optional
         Factor idices or names (all factors by default)
-    group_label : optional
+    groups_label : optional
         Sample (cell) metadata column to be used as group assignment
     groups : optional
         Group indices or names (all groups by default)
@@ -698,9 +698,9 @@ def plot_factors_dotplot(
     z = z.melt(id_vars="sample", var_name="factor", value_name="value")
 
     # Assign a group to every sample (cell) if it is provided
-    if group_label is None:
-        group_label = "group"
-    groups_df = model.samples_metadata.loc[:, [group_label]]
+    if groups_label is None:
+        groups_label = "group"
+    groups_df = model.samples_metadata.loc[:, [groups_label]]
 
     groups_df.rename(columns={groups_df.columns[0]: "group"}, inplace=True)
 
@@ -767,7 +767,7 @@ def plot_factors_dotplot(
     plt.xticks(rotation=90, size=xticklabels_size)
     plt.yticks(size=yticklabels_size)
 
-    plt.ylabel(group_label)
+    plt.ylabel(groups_label)
 
     return g
 

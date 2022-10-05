@@ -155,7 +155,7 @@ def plot_r2_pvalues(
     cmap : optional
         The colourmap for the heatmap (default is 'binary_r' with darker colour for smaller PValues)
     """
-    r2 = model.get_r2_null(
+    r2 = model._get_r2_null(
         factors=factors,
         groups_label=groups_label,
         n_iter=n_iter,
