@@ -1328,9 +1328,9 @@ Expectations: {', '.join(self.expectations.keys())}"""
         views: Optional[Union[str, int, List[str], List[int]]] = None,
         df: bool = True,
     ) -> pd.DataFrame:
-        findices, factors = self.__check_factors(factors, unique=True)
-        groups = self.__check_groups(groups)
-        views = self.__check_views(views)
+        findices, factors = self._check_factors(factors, unique=True)
+        groups = self._check_groups(groups)
+        views = self._check_views(views)
 
         r2s = []
         for view in views:
