@@ -51,15 +51,27 @@ def _load_samples_metadata(model):
                         except (UnicodeDecodeError, AttributeError):
                             pass
 
-            samples_metadata = pd.merge(
-                left=samples_metadata,
-                left_on="sample",
-                right=_samples_metadata,
-                right_on="index",
-            )
+            if "sample" in _samples_metadata.columns:
 
-            if "index" in samples_metadata.columns:
-                del samples_metadata["index"]
+                samples_metadata = pd.merge(
+                    left=samples_metadata,
+                    left_on="sample",
+                    right=_samples_metadata,
+                    right_on="index",
+                )
+
+                if "index" in samples_metadata.columns:
+                    del samples_metadata["index"]
+
+            else:
+
+                samples_metadata = pd.concat(
+                    [
+                        samples_metadata.reset_index(drop=True),
+                        _samples_metadata.reset_index(drop=True),
+                    ],
+                    axis=1,
+                )
 
     samples_metadata = samples_metadata.set_index("sample")
     return samples_metadata
