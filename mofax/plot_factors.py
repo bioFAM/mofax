@@ -924,7 +924,8 @@ def plot_projection(
     model: mofa_model,
     data,
     data_name: str = "projected_data",
-    view: Union[str, int] = None,
+    view: Optional[Union[str, int]] = None,
+    factors: Optional[Iterable[int]] = None,
     with_orig: bool = False,
     x="Factor1",
     y="Factor2",
@@ -955,6 +956,8 @@ def plot_projection(
         A name for the projected dataset ("projected_data" by default)
     view : optional
         A view of the model to consider (first view by default)
+    factors : optional
+        Index of a factor (or indices of factors) to use (all factors by default)
     with_orig : optional
         Boolean value if to plot data from the model (False by default)
     x : optional
@@ -980,19 +983,30 @@ def plot_projection(
     feature_intersection : optional
         Feature intersection flag for project_data
     """
+    x, y = model._check_factors([x, y])[1]
+
+    fi, factors = model._check_factors(factors, unique=True)
+    for i in (x, y):
+        if isinstance(i, int) and i not in fi:
+            raise ValueError(
+                f"Factor{i+1} should also be used to compute the projection"
+            )
+        if isinstance(i, str) and i not in factors:
+            raise ValueError(f"{i} should also be used to compute the projection")
+
     zpred = model.project_data(
         data=data,
         view=view,
-        factors=[x, y],
+        factors=factors,
         df=True,
         feature_intersection=feature_intersection,
     )
-    zpred.columns = ["x", "y"]
+    zpred.columns = factors
 
     # Get and prepare Z matrix from the model if required
     if with_orig:
-        z = model.get_factors(factors=[x, y], groups=groups, df=True)
-        z.columns = ["x", "y"]
+        z = model.get_factors(factors=factors, groups=groups, df=True)
+        z.columns = factors
 
         # Assign a group to every sample (cell) if it is provided
         if groups_df is None:
@@ -1025,7 +1039,7 @@ def plot_projection(
             zpred = zpred.sort_values(color_var)
 
     if with_orig:
-        z = z.append(zpred)
+        z = pd.concat((z, zpred), axis=0, ignore_index=True)
     else:
         z = zpred
 
@@ -1038,8 +1052,8 @@ def plot_projection(
         kwargs["color"] = "black"
 
     g = sns.scatterplot(
-        x="x",
-        y="y",
+        x=x,
+        y=y,
         data=z,
         linewidth=linewidth,
         s=size,

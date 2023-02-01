@@ -852,7 +852,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # multiple views provided as an iterable
         elif isinstance(views, Iterable) and not isinstance(views, str):
-
             # (to-do) check that all elements are of the same type
 
             # iterable of booleans
@@ -890,7 +889,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # multiple groups provided as an iterable
         elif isinstance(groups, Iterable) and not isinstance(groups, str):
-
             # (to-do) check that all elements are of the same type
 
             # iterable of booleans
@@ -951,7 +949,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
         if not isinstance(factors, Iterable) or isinstance(factors, str):
             factors = [factors]
         if unique:
-            factors = list(set(factors))
+            factors = list(dict.fromkeys(factors))
         # Convert factor names (FactorN) to factor indices (N-1)
         factor_indices = [
             int(fi.replace("Factor", "")) - 1 if isinstance(fi, str) else fi
@@ -1053,7 +1051,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
             del z
 
             for view in views:
-
                 y_view = np.concatenate(
                     [self.data[view][group][:, :] for group in groups], axis=0
                 )
@@ -1145,7 +1142,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
             r2 = r2[r2.Factor.isin(factors)]
         # Recalculate if not pre-computed
         else:
-
             r2 = pd.DataFrame()
             factor_indices, _ = self._check_factors(factors)
             for k in factor_indices:
@@ -1240,7 +1236,6 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 z_custom[group] = z[:, np.where(groups_df.iloc[:, 0] == group)[0]]
 
             for view in self.views:
-
                 y_view = np.concatenate(
                     [self.data[view][group][:, :] for group in self.groups], axis=0
                 )
@@ -1258,13 +1253,17 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     y = np.array(data_view[group])
                     a = np.sum((y - crossprod) ** 2)
                     b = np.sum(y**2)
-                    row = pd.DataFrame([{
-                        "View": view,
-                        "Group": group,
-                        "Factor": f"Factor{factor_index+1}",
-                        "R2": 1 - a / b,
-                        "Iteration": i,
-                    }])
+                    row = pd.DataFrame(
+                        [
+                            {
+                                "View": view,
+                                "Group": group,
+                                "Factor": f"Factor{factor_index+1}",
+                                "R2": 1 - a / b,
+                                "Iteration": i,
+                            }
+                        ]
+                    )
                     r2_df = pd.concat([r2_df, row], ignore_index=True)
 
         if return_full:
@@ -1309,16 +1308,19 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factor_indices, factors = self._check_factors(factors)
         r2 = pd.DataFrame()
         for fi in factor_indices:
-            r2 = pd.concat([r2, 
-                self._get_factor_r2_null(
-                    fi,
-                    groups_label=groups_label,
-                    n_iter=n_iter,
-                    return_full=return_full,
-                    return_pvalues=return_pvalues,
-                    fdr=fdr,
-                )
-            ])
+            r2 = pd.concat(
+                [
+                    r2,
+                    self._get_factor_r2_null(
+                        fi,
+                        groups_label=groups_label,
+                        n_iter=n_iter,
+                        return_full=return_full,
+                        return_pvalues=return_pvalues,
+                        fdr=fdr,
+                    ),
+                ]
+            )
         return r2
 
     def get_sample_r2(
@@ -1391,7 +1393,8 @@ Expectations: {', '.join(self.expectations.keys())}"""
 
         # Calculate the inverse of W
         winv = np.linalg.pinv(self.get_weights(views=view, factors=factors))
-        winv = np.concatenate(winv)
+        # FIXME:
+        # winv = np.concatenate(winv)
 
         # Find feature intersection to match the dimensions
         if feature_intersection:
