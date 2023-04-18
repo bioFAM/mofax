@@ -220,7 +220,6 @@ def plot_interpolated_factors(
 def plot_group_kernel(
     model, groups=None, factors=None, palette=None, vmin=-1, vmax=1, ncols=4, **kwargs
 ):
-
     z = model.get_factors(factors=factors, groups=groups)
     factor_indices, factors = model._check_factors(factors, unique=True)
 
@@ -268,7 +267,6 @@ def plot_group_kernel(
             axes = np.array(axes).reshape(1, -1)
 
         for i, factor in enumerate(factors):
-
             ri = i // ncols
             ci = i % ncols
 

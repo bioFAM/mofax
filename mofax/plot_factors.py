@@ -154,7 +154,7 @@ def plot_factors_scatter(
             y,
             color,
             groups=groups,
-            groups_label=group_label,
+            groups_label=groups_label,
             zero_line_x=zero_line_x,
             zero_line_y=zero_line_y,
             linewidth=linewidth,

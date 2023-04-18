@@ -707,9 +707,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
         # Create numpy array
         # y = [self.data[view][g][:, :] for g in groups]
         ym = []
-        for m in views:
-            ym.append(np.concatenate([self.data[m][g][:, f_i] for g in groups], axis=0))
-        y = np.concatenate(ym, axis=1)
+        for j, _ in enumerate(f_i):
+            m = pd_features.iloc[j]["view"]
+            j = np.where(self.features[m] == features[j])[0][0]
+            ym.append(np.concatenate([self.data[m][g][:, j] for g in groups], axis=0))
+        y = np.hstack(ym)
 
         # Convert output to pandas data.frame
         if df:

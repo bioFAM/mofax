@@ -114,7 +114,6 @@ def _plot_grid_from_1d(
         # data_ = data.sort_values(color) if color is not None and color != [None] else data
 
         with sns.axes_style("ticks"), sns.color_palette(palette or "Set2"):
-
             g = plot_func(
                 x=x if split_axis != "x" else split_var,
                 y=y if split_axis != "y" else split_var,

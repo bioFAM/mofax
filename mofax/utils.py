@@ -230,7 +230,7 @@ def _make_iterable(x):
 
 def calculate_r2(Z, W, Y):
     a = np.nansum((Y - Z.T.dot(W)) ** 2.0)
-    b = np.nansum(Y ** 2)
+    b = np.nansum(Y**2)
     r2 = (1.0 - a / b) * 100
     return r2
 
