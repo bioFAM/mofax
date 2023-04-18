@@ -708,10 +708,11 @@ Expectations: {', '.join(self.expectations.keys())}"""
         # y = [self.data[view][g][:, :] for g in groups]
         ym = []
         for j, _ in enumerate(f_i):
+            feat = pd_features.iloc[j]["feature"]
             m = pd_features.iloc[j]["view"]
-            j = np.where(self.features[m] == features[j])[0][0]
+            j = np.where(self.features[m] == feat)[0][0]
             ym.append(np.concatenate([self.data[m][g][:, j] for g in groups], axis=0))
-        y = np.hstack(ym)
+        y = np.column_stack(ym)
 
         # Convert output to pandas data.frame
         if df:
