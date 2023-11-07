@@ -218,8 +218,10 @@ def _plot_factors(
         Grouping variable by default, alternatively a feature name can be provided (when no kde).
         If a list of features is provided, they will be plot on one figure.
         Use palette argument to provide a colour map.
-    zero_line : optional
-        Boolean values if to add Z=0 line
+    zero_line_x : optional
+        Boolean values if to add Z=0 line to x-axis
+    zero_line_y : optional
+        Boolean values if to add Z=0 line to y-axis
     linewidth : optional
         Linewidth argument for dots (default is 0)
     zero_linewidth : optional
