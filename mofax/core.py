@@ -1015,14 +1015,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
                                 ),
                                 Y=np.array(self.data[view][group]),
                             )
-                            r2_df = r2_df.append(
-                                {
+                            r2_df = pd.concat([r2_df, pd.DataFrame(
+                                [{
                                     "View": view,
                                     "Group": group,
                                     "R2": r2,
                                     "Factor": factor_name,
-                                },
-                                ignore_index=True,
+                                }])], ignore_index=True
                             )
                     else:
                         r2 = calculate_r2(
@@ -1032,9 +1031,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
                             W=np.array(self.expectations["W"][view][factor_indices, :]),
                             Y=np.array(self.data[view][group]),
                         )
-                        r2_df = r2_df.append(
-                            {"View": view, "Group": group, "R2": r2}, ignore_index=True
-                        )
+                        r2_df = pd.concat([r2_df, pd.DataFrame(
+                                [{
+                                    "View": view,
+                                    "Group": group,
+                                    "R2": r2
+                                }])], ignore_index=True
+                            )
 
         # use custom groups
         # note that when calculating for a custom set of groups,
@@ -1073,14 +1076,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
                                 ),
                                 Y=np.array(data_view[group]),
                             )
-                            r2_df = r2_df.append(
-                                {
+                            r2_df = pd.concat([r2_df, pd.DataFrame(
+                                [{
                                     "View": view,
                                     "Group": group,
                                     "R2": r2,
                                     "Factor": factor_name,
-                                },
-                                ignore_index=True,
+                                }])], ignore_index=True
                             )
                     else:
                         r2 = calculate_r2(
@@ -1088,9 +1090,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
                             W=np.array(self.expectations["W"][view][factor_indices, :]),
                             Y=np.array(data_view[group]),
                         )
-                        r2_df = r2_df.append(
-                            {"View": view, "Group": group, "R2": r2}, ignore_index=True
-                        )
+                        r2_df = pd.concat([r2_df, pd.DataFrame(
+                                [{
+                                    "View": view,
+                                    "Group": group,
+                                    "R2": r2
+                                }])], ignore_index=True
+                            )
         return r2_df
 
     def get_variance_explained(
@@ -1256,15 +1262,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     y = np.array(data_view[group])
                     a = np.sum((y - crossprod) ** 2)
                     b = np.sum(y ** 2)
-                    r2_df = r2_df.append(
-                        {
+                    r2_df = pd.concat([r2_df, pd.DataFrame(
+                        [{
                             "View": view,
                             "Group": group,
                             "Factor": f"Factor{factor_index+1}",
                             "R2": 1 - a / b,
                             "Iteration": i,
-                        },
-                        ignore_index=True,
+                        }])], ignore_index=True
                     )
 
         if return_full:
