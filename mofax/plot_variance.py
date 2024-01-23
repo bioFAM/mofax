@@ -69,6 +69,7 @@ def plot_r2(
         views=views,
         group_label=group_label,
         groups_df=groups_df,
+        per_factor=True
     )
 
     vmax = r2.R2.max() if vmax is None else vmax
