@@ -26,7 +26,6 @@ def plot_r2(
     x="Group",
     y="Factor",
     factors: Union[int, List[int], str, List[str]] = None,
-    groups_df: pd.DataFrame = None,
     group_label: str = None,
     views=None,
     groups=None,
@@ -54,8 +53,6 @@ def plot_r2(
         Make a plot for certain groups (None by default to plot all groups)
     group_label : optional
         Sample (cell) metadata column to be used as group assignment
-    groups_df : optional pd.DataFrame
-        Data frame with samples (cells) as index and first column as group assignment
     cmap : optional
         The colourmap for the heatmap (default is 'Blues' with darker colour for higher R2)
     vmin : optional
@@ -63,13 +60,20 @@ def plot_r2(
     vmax : optional
         Display all R2 values larger than vmax as vmax (derived from the data by default)
     """
-    r2 = model.get_r2(
-        factors=factors,
-        groups=groups,
-        views=views,
-        group_label=group_label,
-        groups_df=groups_df,
-    )
+    if group_label is None:
+        r2 = model.get_variance_explained(
+            factors=factors,
+            groups=groups,
+            views=views,
+        )
+    else:
+        r2 = model.calculate_variance_explained(
+            factors=factors,
+            groups=groups,
+            views=views,
+            group_label=group_label,
+            per_factor=True,
+        )
 
     vmax = r2.R2.max() if vmax is None else vmax
     vmin = 0 if vmin is None else vmin
@@ -161,7 +165,7 @@ def plot_r2_pvalues(
     cmap : optional
         The colourmap for the heatmap (default is 'binary_r' with darker colour for smaller PValues)
     """
-    r2 = model.get_r2_null(
+    r2 = model._get_r2_null(
         factors=factors,
         groups_df=groups_df,
         group_label=group_label,

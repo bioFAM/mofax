@@ -403,10 +403,10 @@ def plot_weights_scaled(
         .drop_duplicates("feature")
     )
 
-    top_features = wm.sort_values("factor", ascending=True).feature.values
+    # top_features = wm.sort_values("factor", ascending=True).feature.values
 
     # Construct the plot
-    ax = sns.scatterplot("x", "y", data=w, linewidth=0, color="#CCCCCC", **kwargs)
+    ax = sns.scatterplot(data=w, x="x", y="y", linewidth=0, color="#CCCCCC", **kwargs)
     ax.set_xlim(-1.5, 1.5)
     ax.set_ylim(-1.5, 1.5)
     ax.set_aspect(1)
@@ -522,7 +522,9 @@ def plot_weights_heatmap(
         if n_features is None:
             n_features = n_features_default
         # Get a subset of features
-        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
+            "factor", observed=False
+        )
         if w_threshold is None:
             features = wm.head(n_features).feature.unique()
         else:
@@ -653,7 +655,8 @@ def plot_weights_dotplot(
             n_features = n_features_default
         # Get a subset of features
         wm_g = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
-            ["factor", "view"]
+            ["factor", "view"],
+            observed=False,
         )
         if w_threshold is None:
             features = wm_g.head(n_features).feature.unique()
@@ -793,7 +796,9 @@ def plot_weights_scatter(
     add_text = plot.ax_joint.text if hist else plot.text
     if n_features is not None and n_features > 0:
         # Get a subset of features
-        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby("factor")
+        wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
+            "factor", observed=False
+        )
         features = wm.head(n_features).feature.unique()
         w_label = w[w.feature.isin(features)].set_index("feature")
         del wm

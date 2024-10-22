@@ -1,3 +1,5 @@
+from warnings import warn
+
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
@@ -60,6 +62,7 @@ def _plot_grid_from_1d(
     sharex=False,
     sharey=False,
     modifier=None,
+    rotate_x_labels=None,
     **kwargs,
 ):
     x = maybe_factor_indices_to_factors(x)
@@ -172,6 +175,9 @@ def _plot_grid_from_1d(
                         prop=legend_prop,
                     )
 
+            if rotate_x_labels:
+                plt.setp(g.get_xticklabels(), rotation=rotate_x_labels)
+
             if zero_line_y:
                 axes[ri, ci].axhline(
                     0, ls="--", color="lightgrey", linewidth=zero_linewidth, zorder=0
@@ -185,7 +191,10 @@ def _plot_grid_from_1d(
         for i in range(len(split_vars), ncols * nrows):
             ri = i // ncols
             ci = i % ncols
-            fig.delaxes(axes[ri, ci])
+            try:
+                fig.delaxes(axes[ri, ci])
+            except KeyError:
+                pass
 
         plt.tight_layout()
 

@@ -35,11 +35,13 @@ def plot_factors_scatter(
     zero_linewidth=1,
     size=20,
     legend=True,
+    legend_str=True,
     legend_prop=None,
     palette=None,
     ncols=4,
     sharex=False,
     sharey=False,
+    rotate_x_labels=None,
     **kwargs,
 ):
     """
@@ -87,6 +89,8 @@ def plot_factors_scatter(
         Common X axis across plots on the grid
     sharey: optional
         Common Y axis across plots on the grid
+    rotate_x_labels: int, optional
+        Rotate x-axis labels (default is None)
     """
 
     # Process input arguments
@@ -130,6 +134,8 @@ def plot_factors_scatter(
             **kwargs,
         )
         sns.despine(offset=10, trim=True, ax=g.ax_joint)
+        x_factor_label = maybe_factor_indices_to_factors(x)
+        y_factor_label = maybe_factor_indices_to_factors(y)
         g.ax_joint.set(
             xlabel=f"{x_factor_label} value", ylabel=f"{y_factor_label} value"
         )
@@ -141,6 +147,8 @@ def plot_factors_scatter(
             g.axhline(0, ls="--", color="lightgrey", linewidth=linewidth, zorder=0)
         if zero_line_x:
             g.axvline(0, ls="--", color="lightgrey", linewidth=linewidth, zorder=0)
+        if rotate_x_labels:
+            plt.xticks(rotation=rotate_x_labels)
         plt.tight_layout()
     else:
         plot = partial(
@@ -165,6 +173,7 @@ def plot_factors_scatter(
             ncols=ncols,
             sharex=sharex,
             sharey=sharey,
+            rotate_x_labels=rotate_x_labels,
             **kwargs,
         )
 
@@ -192,6 +201,7 @@ def _plot_factors(
     ncols=4,
     sharex=False,
     sharey=False,
+    rotate_x_labels=None,
     **kwargs,
 ):
     """
@@ -239,6 +249,8 @@ def _plot_factors(
         Common X axis across plots on the grid
     sharey: optional
         Common Y axis across plots on the grid
+    rotate_x_labels: int, optional
+        Rotate x-axis labels (default is None)
     """
 
     # Process input arguments
@@ -281,6 +293,7 @@ def _plot_factors(
         ncols=ncols,
         sharex=sharex,
         sharey=sharey,
+        rotate_x_labels=rotate_x_labels,
         **kwargs,
     )
 
