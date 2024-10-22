@@ -9,13 +9,8 @@ import h5py
 
 
 def _load_samples_metadata(model):
-    samples_metadata = pd.DataFrame(
-        [
-            [cell, group]
-            for group, cell_list in model.samples.items()
-            for cell in cell_list
-        ],
-        columns=["sample", "group"],
+    samples_metadata = pd.concat(
+        [pd.DataFrame({"sample": model.samples[g], "group": g}) for g in model.groups]
     )
     if "samples_metadata" in model.model:
         if len(list(model.model["samples_metadata"][model.groups[0]].keys())) > 0:
@@ -64,13 +59,16 @@ def _load_samples_metadata(model):
 
 
 def _load_features_metadata(model):
-    features_metadata = pd.DataFrame(
+    features_metadata = pd.concat(
         [
-            [feature, view]
-            for view, feature_list in model.features.items()
-            for feature in feature_list
-        ],
-        columns=["feature", "view"],
+            pd.DataFrame(
+                {
+                    "feature": model.features[v],
+                    "view": v,
+                }
+            )
+            for v in model.views
+        ]
     )
     if "features_metadata" in model.model:
         if len(list(model.model["features_metadata"][model.views[0]].keys())) > 0:
