@@ -376,11 +376,13 @@ Expectations: {', '.join(self.expectations.keys())}"""
             # Get a subset of features
             if per_view:
                 wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
-                    ["factor", "view"]
+                    ["factor", "view"],
+                    observed=False,
                 )
             else:
                 wm = wm.sort_values(["factor", "value_abs"], ascending=False).groupby(
-                    ["factor", "view"]
+                    ["factor", "view"],
+                    observed=False,
                 )
             # Use clip threshold if provided
             if clip_threshold is None:
@@ -1032,9 +1034,14 @@ Expectations: {', '.join(self.expectations.keys())}"""
                             W=np.array(self.expectations["W"][view][factor_indices, :]),
                             Y=np.array(self.data[view][group]),
                         )
-                        r2_df = r2_df.append(
-                            {"View": view, "Group": group, "R2": r2}, ignore_index=True
+                        temp_df = pd.DataFrame.from_dict(
+                            {
+                                "View": [view],
+                                "Group": [group],
+                                "R2": [r2],
+                            }
                         )
+                        r2_df = pd.concat((r2_df, temp_df), ignore_index=True)
 
         # use custom groups
         # note that when calculating for a custom set of groups,
@@ -1073,24 +1080,25 @@ Expectations: {', '.join(self.expectations.keys())}"""
                                 ),
                                 Y=np.array(data_view[group]),
                             )
-                            r2_df = r2_df.append(
+                            temp_df = pd.DataFrame.from_dict(
                                 {
-                                    "View": view,
-                                    "Group": group,
-                                    "R2": r2,
-                                    "Factor": factor_name,
-                                },
-                                ignore_index=True,
+                                    "View": [view],
+                                    "Group": [group],
+                                    "R2": [r2],
+                                    "Factor": [factor_name],
+                                }
                             )
+                            r2_df = pd.concat((r2_df, temp_df), ignore_index=True)
                     else:
                         r2 = calculate_r2(
                             Z=np.array(z_custom[group][factor_indices, :]),
                             W=np.array(self.expectations["W"][view][factor_indices, :]),
                             Y=np.array(data_view[group]),
                         )
-                        r2_df = r2_df.append(
-                            {"View": view, "Group": group, "R2": r2}, ignore_index=True
+                        temp_df = pd.DataFrame.from_dict(
+                            {"View": [view], "Group": [group], "R2": [r2]}
                         )
+                        r2_df = pd.concat((r2_df, temp_df), ignore_index=True)
         return r2_df
 
     def get_variance_explained(
@@ -1255,17 +1263,17 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     )
                     y = np.array(data_view[group])
                     a = np.sum((y - crossprod) ** 2)
-                    b = np.sum(y ** 2)
-                    r2_df = r2_df.append(
+                    b = np.sum(y**2)
+                    temp_df = pd.DataFrame.from_dict(
                         {
-                            "View": view,
-                            "Group": group,
-                            "Factor": f"Factor{factor_index+1}",
-                            "R2": 1 - a / b,
-                            "Iteration": i,
-                        },
-                        ignore_index=True,
+                            "View": [view],
+                            "Group": [group],
+                            "Factor": [f"Factor{factor_index+1}"],
+                            "R2": [1 - a / b],
+                            "Iteration": [i],
+                        }
                     )
+                    r2_df = pd.concat((r2_df, temp_df), ignore_index=True)
 
         if return_full:
             if return_true:
@@ -1310,17 +1318,16 @@ Expectations: {', '.join(self.expectations.keys())}"""
         factor_indices, factors = self._check_factors(factors)
         r2 = pd.DataFrame()
         for fi in factor_indices:
-            r2 = r2.append(
-                self._get_factor_r2_null(
-                    fi,
-                    groups_df=groups_df,
-                    group_label=group_label,
-                    n_iter=n_iter,
-                    return_full=return_full,
-                    return_pvalues=return_pvalues,
-                    fdr=fdr,
-                )
+            temp_df = self._get_factor_r2_null(
+                fi,
+                groups_df=groups_df,
+                group_label=group_label,
+                n_iter=n_iter,
+                return_full=return_full,
+                return_pvalues=return_pvalues,
+                fdr=fdr,
             )
+            r2 = pd.concat((r2, temp_df))
         return r2
 
     def get_sample_r2(
@@ -1342,7 +1349,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                 )
                 y = np.array(self.data[view][group])
                 a = np.nansum((y - crossprod) ** 2.0, axis=1)
-                b = np.nansum(y ** 2, axis=1)
+                b = np.nansum(y**2, axis=1)
 
                 r2_df_mg = pd.DataFrame(
                     {
@@ -1353,7 +1360,7 @@ Expectations: {', '.join(self.expectations.keys())}"""
                     }
                 )
 
-                r2s.append(r2_df_mg)
+                r2s = pd.concat((r2s, r2_df_mg), axis=0)
 
         r2_df = pd.concat(r2s, axis=0, ignore_index=True)
 
