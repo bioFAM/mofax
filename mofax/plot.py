@@ -17,6 +17,7 @@ import seaborn as sns
 from .utils import maybe_factor_indices_to_factors, _make_iterable, _is_iter
 from .plot_utils import _plot_grid
 
+from .plot_data import *
 from .plot_factors import *
 from .plot_weights import *
 from .plot_variance import *
