@@ -426,7 +426,6 @@ def plot_factors_violin(
     plot = partial(
         sns.violinplot,
         inner=None,
-        s=size,
     )
 
     g = _plot_grid(
@@ -439,7 +438,6 @@ def plot_factors_violin(
         zero_line_y=zero_line,
         linewidth=linewidth,
         zero_linewidth=zero_linewidth,
-        size=size,
         legend=legend,
         legend_prop=legend_prop,
         palette=palette,
