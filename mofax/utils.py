@@ -71,18 +71,18 @@ def _load_features_metadata(model):
         ]
     )
     if "features_metadata" in model.model:
-        if len(list(model.model["features_metadata"][model.views[0]].keys())) > 0:
-            features_metadata_dict = {
-                m: pd.concat(
+        features_metadata_dict = {}
+        for m in model.views:
+            if len(list(model.model["features_metadata"][m].keys())) > 0:
+                features_metadata_dict[m] = pd.concat(
                     [
                         pd.Series(model.model["features_metadata"][m][k])
                         for k in model.model["features_metadata"][m].keys()
                     ],
                     axis=1,
                 )
-                for m in model.views
-            }
-
+                
+        if len(features_metadata_dict) > 0:
             for m in features_metadata_dict.keys():
                 features_metadata_dict[m].columns = list(
                     model.model["features_metadata"][m].keys()
